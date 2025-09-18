@@ -1,3 +1,11 @@
+# This is the lambda script that we will be running within AWS lamda to scrape and upload images to S3 and DB
+
+# Instructions for backend team:
+# only modify code in lambda_handler() function
+# when testing locally, event and context will not be available
+# you need to generate aws access key and secret token
+# any questions ask dione
+
 # app.py
 import os
 import json
@@ -6,6 +14,7 @@ import requests
 import psycopg2
 from datetime import datetime, timezone
 
+#secrets are stored on AWS secrets manager
 secrets_client = boto3.client('secretsmanager')
 s3 = boto3.client('s3')
 
