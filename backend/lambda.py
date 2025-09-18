@@ -2,8 +2,14 @@
 
 # Instructions for backend team:
 # only modify code in lambda_handler() function
-# when testing locally, event and context will not be available
-# you need to generate aws access key and secret token
+# when testing locally, event and context will not be available but its ok not needed since we are only scraping one site
+# you need to generate aws access key and secret token and set the following variables when you initialise your boto3 client
+# s3_client: boto3.client = boto3.client(
+#             "s3",
+#             aws_access_key_id=AWS_ACCESS_KEY_ID,
+#             aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+#             aws_session_token=AWS_SESSION_TOKEN,
+#         )
 # any questions ask dione
 
 # app.py
