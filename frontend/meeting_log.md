@@ -21,3 +21,8 @@
 * Interviews - try to find candidates based on personas created
 * Frontend engine - streamlit
 * Wiki - we all can access it, but not so much to do as for now
+
+## TODO:
+[ ] 5 complete interviews by 2nd October
+[ ] Interview questions, sourcing interviewees by this weekend
+[ ] Generate a prototype to be used in interviews
