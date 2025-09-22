@@ -10,10 +10,10 @@
 - asks his officer to report to him about recent and/or upcoming storms
 - finds out that the weather forecast data provided is not comprehensive, as attributes like cloud, wind speed, and rain are all scattered in different databases/websites
 
-## Jared
+## Jane
 
-- 21-year-old polytechnic student who volunteers at a local stadium to issue thunder warning sirens
-- Having more information about upcoming storms would make his volunteering job easier
+- 47-year-old housewife who collects rainwater to water her plants
+- Having more information about upcoming storms would make her gardening practice easier
 
 ## Weijun
 
