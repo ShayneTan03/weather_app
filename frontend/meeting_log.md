@@ -10,3 +10,12 @@
 [ ] Is interview necessary for our dataset?  
 [ ] Wiki - how should we structure it and is there any sample available  
 
+
+# **22 Sep 2025 20:30**
+
+## Feedback to backend team:
+* Do we need the most recent data? - no, focus on the reliability first, and scope our project to curating past information rather than live updates
+
+## Overall direction of our project:
+* A curation of scattered weather/storm information that provides a comprehensive overview of regional metereological data 
+* Frontend engine - streamlit
