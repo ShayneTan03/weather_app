@@ -8,7 +8,7 @@
 
 ## Things to ask Hock Leong:
 [ ] Is interview necessary for our dataset?  
-[ ] Wiki - how should we structure it and is there any sample available  
+[O] Wiki - how should we structure it and is there any sample available  
 
 
 # **22 Sep 2025 20:30**
@@ -18,4 +18,6 @@
 
 ## Overall direction of our project:
 * A curation of scattered weather/storm information that provides a comprehensive overview of regional metereological data 
+* Interviews - try to find candidates based on personas created
 * Frontend engine - streamlit
+* Wiki - we all can access it, but not so much to do as for now
