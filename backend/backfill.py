@@ -2,7 +2,7 @@ import os
 import json
 import boto3
 import requests
-import psycopg2
+import pg8000
 from datetime import datetime, timezone,timedelta
 #secrets are stored on AWS secrets manager
 secrets_client = boto3.client('secretsmanager')
@@ -37,7 +37,9 @@ def get_db_conn(secret_arn):
     global _db_conn
     if _db_conn:
         try:
-            _db_conn.cursor().execute("SELECT 1;")
+            cur = _db_conn.cursor()
+            cur.execute("SELECT 1;")
+            cur.close()
             return _db_conn
         except Exception:
             _db_conn = None
@@ -46,9 +48,14 @@ def get_db_conn(secret_arn):
     dbname = secret['dbname']
     user = secret['username']
     password = secret['password']
-    port = secret.get('port', 5432)
-    _db_conn = psycopg2.connect(host=host, dbname=dbname, user=user, password=password, port=port)
-    _db_conn.autocommit = True
+    port = int(secret.get('port', 5432))
+    _db_conn = pg8000.connect(
+        host=host,
+        database=dbname,
+        user=user,
+        password=password,
+        port=port
+    )
     return _db_conn
 
 def fetch_image(url):
@@ -97,7 +104,7 @@ def upload_to_s3(bucket, key, data):
 def insert_metadata(conn, ts, range_km, url, s3_key, status='ok'):
     with conn.cursor() as cur:
         cur.execute("""
-            INSERT INTO radar_images (timestamp, range_km, url, s3_key, status)
+            INSERT INTO radar_image (timestamp, range_km, url, s3_key, status)
             VALUES (%s, %s, %s, %s, %s)
             ON CONFLICT (timestamp) DO UPDATE SET s3_key = EXCLUDED.s3_key, status = EXCLUDED.status,url = EXCLUDED.url;
         """, (ts, range_km, url, s3_key, status)) 
@@ -160,7 +167,7 @@ def backfill(
                     except Exception as e2: # url fail and db not ok 
                         return {"status": "error", "reason": "db connection failed", "error": str(e2)}
                 
-                except psycopg2.Error as e: # db not ok but url is success
+                except pg8000.dbapi.DatabaseError as e: # db not ok but url is success
                     return {"status": "error", "reason": "db connection failed", "error": str(e)}
 
     return{
