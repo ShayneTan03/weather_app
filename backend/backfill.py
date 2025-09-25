@@ -1,12 +1,40 @@
+# This script is designed to backfill radar images from a specified start date to an end date (inclusive) into an S3 bucket and the associated metadata into an RDS instance.
+# Before running this script, ensure that the RDS instance is set up with the radar_image table.
+# The SQL for creating the table can be found in the readme.md file.
+# You must set the following environment variables before running this script:
+# export S3_BUCKET=your_s3_bucket_name
+# export SECRET_ARN=your_secret_arn
+# export RANGE_KM=70 (or 150, depending on which range you want to backfill)
+# You will also need to have the following python packages installed:
+# pip install boto3 requests pg8000 tenacity
+# you can run this script locally or on AWS lambda (see below for lambda_handler function)
+# if running locally, make sure you have your AWS credentials set up in ~/.aws/credentials
+# you can run this script with python backfill.py
+# or you can run this script on AWS lambda by creating a lambda function and uploading this script
+
+#recommended to run this script on AWS lambda with sufficient timeout and memory (at least 30min timeout/ month, 512MB memory), 
+# or run it locally if you have a stable internet connection, do not run this on NUS WIFI as you will not be able to connect to the DB
+
 import os
 import json
 import boto3
 import requests
-import psycopg2
+import pg8000
 from datetime import datetime, timezone,timedelta
+import concurrent.futures
+from tenacity import retry, stop_after_attempt, wait_fixed
+
+#replace with your own credentials if running locally
+s3_client: boto3.client = boto3.client(
+            "s3",
+            aws_access_key_id="AWS_ACCESS_KEY_ID",
+            aws_secret_access_key="AWS_SECRET_ACCESS_KEY",
+            # aws_session_token="",
+        )
+
 #secrets are stored on AWS secrets manager
-secrets_client = boto3.client('secretsmanager')
-s3 = boto3.client('s3')
+secrets_client = boto3.client('secretsmanager', region_name='ap-southeast-2')
+s3 = boto3.client('s3', region_name='ap-southeast-2')
 
 # Global connection object to reuse between invocations (connection pooling benefit)
 _db_conn = None
@@ -37,7 +65,9 @@ def get_db_conn(secret_arn):
     global _db_conn
     if _db_conn:
         try:
-            _db_conn.cursor().execute("SELECT 1;")
+            cur = _db_conn.cursor()
+            cur.execute("SELECT 1;")
+            cur.close()
             return _db_conn
         except Exception:
             _db_conn = None
@@ -46,11 +76,17 @@ def get_db_conn(secret_arn):
     dbname = secret['dbname']
     user = secret['username']
     password = secret['password']
-    port = secret.get('port', 5432)
-    _db_conn = psycopg2.connect(host=host, dbname=dbname, user=user, password=password, port=port)
-    _db_conn.autocommit = True
+    port = int(secret.get('port', 5432))
+    _db_conn = pg8000.connect(
+        host=host,
+        database=dbname,
+        user=user,
+        password=password,
+        port=port
+    )
     return _db_conn
 
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
 def fetch_image(url):
     # using different combination of header seems to help with the anti scrape problem
     headers_sample = [
@@ -90,85 +126,83 @@ def fetch_image(url):
         r = requests.get(url, timeout=15,headers=header) # try each header 
         r.raise_for_status() # new line for downstream functionality 
         return r.content
+    raise Exception("all headers failed")
 
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
 def upload_to_s3(bucket, key, data):
     s3.put_object(Bucket=bucket, Key=key, Body=data) # overwrites by default
 
 def insert_metadata(conn, ts, range_km, url, s3_key, status='ok'):
     with conn.cursor() as cur:
         cur.execute("""
-            INSERT INTO radar_images (timestamp, range_km, url, s3_key, status)
+            INSERT INTO radar_image (timestamp, range_km, url, s3_key, status)
             VALUES (%s, %s, %s, %s, %s)
             ON CONFLICT (timestamp) DO UPDATE SET s3_key = EXCLUDED.s3_key, status = EXCLUDED.status,url = EXCLUDED.url;
         """, (ts, range_km, url, s3_key, status)) 
         conn.commit()
 
 
-# back fill loop
+def process_timestamp(ts, url, range_km, s3_bucket, secret_arn):
+    print(url)
+    try:
+        img = fetch_image(url)
+        s3_key = f"radar/{ts.strftime('%Y/%m/%d/%H%M')}.png"
+        upload_to_s3(s3_bucket, s3_key, img)
+        #print("success upload to s3")
+        conn = get_db_conn(secret_arn)
+        insert_metadata(conn, ts, int(range_km), url, s3_key, 'ok')
+        conn.close()
+        #print("success upload")
+        return ('success', ts)
+    except requests.exceptions.HTTPError as e:
+        try:
+            conn = get_db_conn(secret_arn)
+            insert_metadata(conn, ts, range_km, url, None, 'missing')
+        except Exception as e2:
+            return ('db_error', ts, str(e2))
+        return ('fail', ts, e.response.status_code)
+    except pg8000.dbapi.DatabaseError as e:
+        return ('db_error', ts, str(e))
+    except Exception as e:
+        return ('fail', ts, str(e))
 
-def backfill(
-    start_date
-    ,end_date
-):
-    """
-    This backfiller will backfill radar image data for the specified dates. It will loop through every 5 mins of a date.
+def backfill(start_date, end_date):
+    backfill_date_range = dynamic_date(start_date, end_date)
+    failed_timings = []
+    successful = 0
 
-    For failed URL retrival, it will attempt to insert empty data into sql db 
-    For errors in db, it will break loop immediately
-
-    If backfiller runs successfully, will return a list 
-    """
-
-    backfill_date_range = dynamic_date(start_date,end_date)
-    failed_timings=[]
-
-    hours   = [f"{h:02d}" for h in range(24)]
+    hours = [f"{h:02d}" for h in range(24)]
     minutes = [f"{m:02d}" for m in range(0, 60, 5)]
     range_km = os.environ.get('RANGE_KM', '70')
-    # range_km = 70 
+    s3_bucket = os.environ.get('S3_BUCKET', 'dsa3101-storm-tracking-tw08')
+    secret_arn = os.environ.get('SECRET_ARN', 'arn:aws:secretsmanager:ap-southeast-2:441130535215:secret:prod/storm-tracking/postgresql-XrpBps')
 
-    for date in backfill_date_range: 
-        for h in hours :
-            for m in minutes : 
-                ts_str = date.replace('-','') + h + m
-                ts = datetime.strptime(ts_str, "%Y%m%d%H%M") # for downstream
+    tasks = []
+    for date in backfill_date_range:
+        for h in hours:
+            for m in minutes:
+                ts_str = date.replace('-', '') + h + m
+                ts = datetime.strptime(ts_str, "%Y%m%d%H%M")
+                url = f'https://www.nea.gov.sg/docs/default-source/rain-area/dpsri_{range_km}km_{ts_str}0000dBR.dpsri.png'
+                tasks.append((ts, url, range_km, s3_bucket, secret_arn))
 
-                url = 'https://www.nea.gov.sg/docs/default-source/rain-area/dpsri_'+str(range_km)+'km_'+ts_str+'0000dBR.dpsri.png'
-                # print(url)
+    # dione: calls process_timestamp to download and upload to DB in parallel. (much faster execution)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        futures = [executor.submit(process_timestamp, *task) for task in tasks]
+        for future in concurrent.futures.as_completed(futures):
+            result = future.result()
+            if result[0] == 'success':
+                successful += 1
+                print(f"Processed successfully: {result[1]}")
+            else:
+                failed_timings.append(result)
 
-                try:
-                    img = fetch_image(url)
-                    s3_bucket = os.environ['S3_BUCKET']
-                    s3_key = f"radar/{ts.strftime('%Y/%m/%d/%H%M')}.png"
-                    upload_to_s3(s3_bucket, s3_key, img)
-
-                    secret_arn = os.environ['SECRET_ARN']
-                    conn = get_db_conn(secret_arn)
-                    insert_metadata(conn, ts, int(range_km), url, s3_key, 'ok')
-                    return {"status": "ok", "s3_key": s3_key}
-                
-                ## to dione : erorr handling will break all loops if db connection fails, if db connection is ok but URL fails, then it will record the empty data like you designed, but continue to loop 
-                ## so if the program return error is because of db connection, juz solve the db connection issue and rerun for the same dates since the sql insert will overwrite, s3 will also skip the previously written keys
-
-                # handle 404 error 
-                except requests.exceptions.HTTPError as e: # url fail but db ok
-                    error_rpt = (ts,e.response.status_code)
-                    failed_timings.append(error_rpt)
-                    try:
-                        conn = get_db_conn(secret_arn)
-                        insert_metadata(conn, ts, range_km, url, None, 'missing')
-                    except Exception as e2: # url fail and db not ok 
-                        return {"status": "error", "reason": "db connection failed", "error": str(e2)}
-                
-                except psycopg2.Error as e: # db not ok but url is success
-                    return {"status": "error", "reason": "db connection failed", "error": str(e)}
-
-    return{
-        "backfill status" : 'done'
-        ,"fail_count" : len(failed_timings)
-        ,"failed_timings" : failed_timings
+    return {
+        "backfill status": 'done',
+        "success_count": successful,
+        "fail_count": len(failed_timings),
+        "failed_timings": failed_timings
     }
-
 
 def lambda_handler(event, context):
     try:
@@ -184,8 +218,16 @@ def lambda_handler(event, context):
 
 if __name__ == "__main__":
     event = {
-        "start_date" : "insert here" # format is "2025-09-20" WITH quotes
-        ,"end_date" : "insert here" 
-        } ## dione insert the backfill dates here
+        "start_date" : "2025-06-23" # format is "2025-09-20" WITH quotes
+        ,"end_date" : "2025-08-30" 
+        } ## if running locally, insert backfill date range here. 
     context = {}
     print(lambda_handler(event, context))
+
+
+# If running this on aws lambda, use the following JSON format in the test event to set the date range:
+# {
+#   "start_date": "2025-09-23",
+#   "end_date": "2025-06-25"
+# }
+# this will override the default date range in the main function
