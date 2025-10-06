@@ -30,30 +30,46 @@ def get_secret(secret_arn):
     resp = secrets_client.get_secret_value(SecretId=secret_arn)
     return json.loads(resp['SecretString'])
 
+# def get_db_conn(secret_arn):
+#     global _db_conn
+#     if _db_conn:
+#         try:
+#             cur = _db_conn.cursor()
+#             cur.execute("SELECT 1;")
+#             cur.close()
+#             return _db_conn
+#         except Exception:
+#             _db_conn = None
+#     secret = get_secret(secret_arn)
+#     host = secret['host']
+#     dbname = secret['dbname']
+#     user = secret['username']
+#     password = secret['password']
+#     port = int(secret.get('port', 5432))
+#     _db_conn = pg8000.connect(
+#         host=host,
+#         database=dbname,
+#         user=user,
+#         password=password,
+#         port=port
+#     )
+#     return _db_conn
+
+#instead of a global connection object, we will create a new connection each time
 def get_db_conn(secret_arn):
-    global _db_conn
-    if _db_conn:
-        try:
-            cur = _db_conn.cursor()
-            cur.execute("SELECT 1;")
-            cur.close()
-            return _db_conn
-        except Exception:
-            _db_conn = None
     secret = get_secret(secret_arn)
     host = secret['host']
     dbname = secret['dbname']
     user = secret['username']
     password = secret['password']
     port = int(secret.get('port', 5432))
-    _db_conn = pg8000.connect(
+    return pg8000.connect(
         host=host,
         database=dbname,
         user=user,
         password=password,
         port=port
     )
-    return _db_conn
 
 def insert_metadata(conn,input_df):
     data_payload = input_df.to_records(index = False).to_list()
