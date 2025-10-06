@@ -27,8 +27,8 @@ from tenacity import retry, stop_after_attempt, wait_fixed
 #replace with your own credentials if running locally
 s3_client: boto3.client = boto3.client(
             "s3",
-            aws_access_key_id="AKIAWNNLNZEXUYBQAENT",
-            aws_secret_access_key="1aa/xfRy3CzYPvh5mvTHExTvPr3rLSulPFYXJI3C",
+            aws_access_key_id="AWS_ACCESS_KEY",
+            aws_secret_access_key="SECRET_ACCESS_KEY",
             # aws_session_token="",
         )
 
