@@ -34,12 +34,12 @@ s3_client: boto3.client = boto3.client(
 
 #secrets are stored on AWS secrets manager
 secrets_client = boto3.client('secretsmanager',
-            aws_access_key_id="AKIAWNNLNZEXWLDBYJGC",
-            aws_secret_access_key="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",
+            aws_access_key_id="SECRET_ACCESS_KEY_ID",
+            aws_secret_access_key="SECRET_ACCESS_KEY",
             region_name='ap-southeast-2')
 s3 = boto3.client('s3', 
-            aws_access_key_id="AKIAWNNLNZEXWLDBYJGC",
-            aws_secret_access_key="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",
+            aws_access_key_id="SECRET_ACCESS_KEY_ID",
+            aws_secret_access_key="SECRET_ACCESS_KEY",
             region_name='ap-southeast-2')
 
 
