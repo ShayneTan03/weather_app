@@ -27,17 +27,20 @@ from tenacity import retry, stop_after_attempt, wait_fixed
 #replace with your own credentials if running locally
 s3_client: boto3.client = boto3.client(
             "s3",
-            aws_access_key_id="AKIAWNNLNZEXUYBQAENT",
-            aws_secret_access_key="1aa/xfRy3CzYPvh5mvTHExTvPr3rLSulPFYXJI3C",
+            aws_access_key_id="AKIAWNNLNZEXWLDBYJGC",
+            aws_secret_access_key="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",
             # aws_session_token="",
         )
 
 #secrets are stored on AWS secrets manager
-secrets_client = boto3.client('secretsmanager', region_name='ap-southeast-2')
-s3 = boto3.client('s3', region_name='ap-southeast-2')
-
-# Global connection object to reuse between invocations (connection pooling benefit)
-_db_conn = None
+secrets_client = boto3.client('secretsmanager',
+            aws_access_key_id="AKIAWNNLNZEXWLDBYJGC",
+            aws_secret_access_key="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",
+            region_name='ap-southeast-2')
+s3 = boto3.client('s3', 
+            aws_access_key_id="AKIAWNNLNZEXWLDBYJGC",
+            aws_secret_access_key="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",
+            region_name='ap-southeast-2')
 
 
 def dynamic_date( 
@@ -87,6 +90,7 @@ def get_secret(secret_arn):
 #     return _db_conn
 
 #instead of using a global connection, create a new connection for each thread to avoid "connection already closed" error
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
 def get_db_conn(secret_arn):
     secret = get_secret(secret_arn)
     host = secret['host']
@@ -148,10 +152,17 @@ def fetch_image(url):
 def upload_to_s3(bucket, key, data):
     s3.put_object(Bucket=bucket, Key=key, Body=data) # overwrites by default
 
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
 def insert_metadata(conn, ts, range_km, url, s3_key, status='ok'):
     with conn.cursor() as cur:
         cur.execute("""
-            INSERT INTO radar_image (timestamp, range_km, url, s3_key, status)
+            INSERT INTO radar_image (
+                timestamp, 
+                range_km, 
+                url, 
+                s3_key, 
+                status
+            )
             VALUES (%s, %s, %s, %s, %s)
             ON CONFLICT (timestamp) DO UPDATE SET s3_key = EXCLUDED.s3_key, status = EXCLUDED.status,url = EXCLUDED.url;
         """, (ts, range_km, url, s3_key, status)) 
@@ -238,8 +249,8 @@ def lambda_handler(event, context):
 
 if __name__ == "__main__":
     event = {
-        "start_date" : "2025-06-23" # format is "2025-09-20" WITH quotes
-        ,"end_date" : "2025-07-02" 
+        "start_date" : "2025-09-01" # format is "2025-09-20" WITH quotes
+        ,"end_date" : "2025-10-06" 
         } ## if running locally, insert backfill date range here. 
     context = {}
     print(lambda_handler(event, context))

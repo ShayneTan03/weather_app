@@ -56,22 +56,24 @@ class StormObservation(Base):
 class WeatherStation(Base):
     __tablename__ = "weather_station"
 
-    station_id = Column(Integer, primary_key=True, index=True)
+    station_id = Column(String, primary_key=True, index=True)
     name = Column(String, nullable=False)
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
 
     observations = relationship("WeatherObservation", back_populates="station")
 
-
+#added new columns temperature_c and humidity_pct
 class WeatherObservation(Base):
     __tablename__ = "weather_observation"
 
     obs_id = Column(Integer, primary_key=True, index=True)
-    station_id = Column(Integer, ForeignKey("weather_station.station_id", ondelete="CASCADE"), nullable=False)
+    station_id = Column(String, ForeignKey("weather_station.station_id", ondelete="CASCADE"), nullable=False)
     timestamp = Column(TIMESTAMP, nullable=False)
     wind_speed = Column(Float)
     wind_direction = Column(Float)
     rainfall_mm = Column(Float)
+    temperature_c = Column(Float)
+    humidity_pct = Column(Float)
 
     station = relationship("WeatherStation", back_populates="observations")

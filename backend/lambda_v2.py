@@ -1,3 +1,10 @@
+#########################
+# This script is used to pull D-2 radar images from NEA website
+# and store the images in S3 and metadata in PostgreSQL database.
+# The script is designed to be run as an AWS Lambda function, triggered daily
+# to fetch the previous day's data and update the database accordingly.
+#########################
+
 import os
 import json
 import boto3
@@ -102,7 +109,13 @@ def upload_to_s3(bucket, key, data):
 def insert_metadata(conn, ts, range_km, url, s3_key, status='ok'):
     with conn.cursor() as cur:
         cur.execute("""
-            INSERT INTO radar_image (timestamp, range_km, url, s3_key, status)
+            INSERT INTO radar_image (
+                timestamp, 
+                range_km, 
+                url, 
+                s3_key, 
+                status
+            )
             VALUES (%s, %s, %s, %s, %s)
             ON CONFLICT (timestamp) DO UPDATE SET s3_key = EXCLUDED.s3_key, status = EXCLUDED.status,url = EXCLUDED.url;
         """, (ts, range_km, url, s3_key, status)) 

@@ -1,3 +1,11 @@
+######################
+# this script is used to ingest real-time weather data from data.gov.sg API
+# and store the data in a PostgreSQL database.
+# The data includes wind speed, wind direction, rainfall, temperature, and humidity.
+# The script is designed to be run as an AWS Lambda function, triggered every 5 minutes
+# to fetch the latest data and update the database accordingly.
+######################
+
 import pandas as pd 
 import numpy as np 
 import requests
@@ -72,28 +80,29 @@ def get_db_conn(secret_arn):
     )
 
 def insert_metadata(conn,input_df):
-    data_payload = input_df.to_records(index = False).to_list()
+    data_payload = input_df.to_records(index = False).tolist()
     with conn.cursor() as cur:
-        # i set the database name to be real_time_weather_data, change if needed
         cur.executemany(
+            #table name: weather_observation
+            #updated column names to match models.py
         """
-        INSERT INTO real_time_weather_data (
+        INSERT INTO weather_observation (
                 station_id,
-                time_stamp,
-                wind_direction_degrees,
-                wind_speed_knots,
+                timestamp,
+                wind_direction,
+                wind_speed,
                 rainfall_mm,
                 temperature_c,
                 humidity_pct
             )
         VALUES (%s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (station_id, time_stamp) DO UPDATE
-        SET wind_direction_degrees = EXCLUDED.wind_direction_degrees,
-            wind_speed_knots       = EXCLUDED.wind_speed_knots,
-            rainfall_mm            = EXCLUDED.rainfall_mm,
-            temperature_c          = EXCLUDED.temperature_c,
-            humidity_pct           = EXCLUDED.humidity_pct;
-        """, data_payload) 
+        ON CONFLICT (station_id, timestamp) DO UPDATE
+        SET wind_direction = EXCLUDED.wind_direction,
+            wind_speed = EXCLUDED.wind_speed,
+            rainfall_mm = EXCLUDED.rainfall_mm,
+            temperature_c = EXCLUDED.temperature_c,
+            humidity_pct = EXCLUDED.humidity_pct;
+        """, data_payload)
         conn.commit()
 
 #################################################
@@ -122,7 +131,7 @@ def wind_speed_api(
         reading_output_df = pd.DataFrame(read_output)
         reading_output_df.rename(columns={
             'stationId' : 'station_id'
-            ,'value' : 'wind_speed_knots'
+            ,'value' : 'wind_speed'
         },inplace=True)
         return reading_output_df 
     else:
@@ -150,7 +159,7 @@ def wind_direction_api(
         reading_output_df = pd.DataFrame(read_output)
         reading_output_df.rename(columns={
             'stationId' : 'station_id'
-            ,'value' : 'wind_direction_degrees'
+            ,'value' : 'wind_direction'
         },inplace=True)
         return reading_output_df 
     else:
@@ -254,10 +263,10 @@ def main_scrapper(
 
     combined_df = wind_direction_df.merge(wind_speed_df,on='station_id',how = 'inner').merge(rainfall_df,on='station_id',how = 'inner').merge(temperature_df,on='station_id',how = 'inner').merge(humidity_df,on='station_id',how = 'inner')
 
-    # add time_stamp and rearrange
-    combined_df['time_stamp'] = query_date_time
-    combined_df = combined_df[['time_stamp','station_id','wind_direction_degrees','wind_speed_knots','rainfall_mm','temperature_c','humidity_pct']]
-
+    # add timestamp and rearrange
+    combined_df['timestamp'] = pd.to_datetime(query_date_time)
+    combined_df = combined_df[['station_id','timestamp','wind_direction','wind_speed','rainfall_mm','temperature_c','humidity_pct']]
+# some issues with the data types, need to convert to correct types, will cont working on this when i m not dying
 
 
     # print(combined_df['station_id'].unique())
@@ -268,8 +277,8 @@ def main_scrapper(
 
     # inner join all upload one table on postgre
     # station_id                 object
-    # wind_direction_degrees      int64
-    # wind_speed_knots          float64
+    # wind_direction              int64
+    # wind_speed                float64
     # rainfall_mm                 int64
     # temperature_C             float64
     # humidity_pct                float64
@@ -280,28 +289,75 @@ def main_scrapper(
 
 #################################################
 ## main working functions 
-def scrap_and_upload(
-    query_date_time
-    ,conn
-) :
-    result = main_scrapper(query_date_time)
+def scrap_and_upload(query_date_time, conn):
     try:
-        #################################################
-        ## dione to add database related stuff
-
-
-
-        #################################################
-
-
-        insert_metadata(result,conn)
-        print(f'success for {query_date_time}!')
-    except pg8000.dbapi.DatabaseError as e: # db not ok but url is success
-        return {"status": "error", "reason": "db connection failed", "error": str(e)}
+        # Validate connection before scraping
+        if conn is None:
+            raise ValueError('Database connection is None')
+        
+        # Perform scraping
+        result = main_scrapper(query_date_time)
+        
+        # Validate scraping result
+        if result is None:
+            raise ValueError(f'Scraping returned no results for {query_date_time}')
+        
+        # Insert into database
+        insert_metadata(conn, result)
+        
+        print(f'Success for {query_date_time}!')
+        return {
+            "status": "success",
+            "timestamp": str(query_date_time),
+            "records_inserted": len(result) if hasattr(result, '__len__') else None
+        }
+        
+    except ValueError as e:
+        # Handle validation errors
+        print(f"Validation error for {query_date_time}: {e}")
+        return {
+            "status": "error",
+            "reason": "validation_failed",
+            "error": str(e),
+            "timestamp": str(query_date_time)
+        }
+        
+    except pg8000.dbapi.DatabaseError as e:
+        # Handle database-specific errors
+        print(f"Database error for {query_date_time}: {e}")
+        return {
+            "status": "error",
+            "reason": "database_error",
+            "error": str(e),
+            "timestamp": str(query_date_time)
+        }
+        
+    except requests.exceptions.RequestException as e:
+        # Handle network/scraping errors (if using requests)
+        print(f"Scraping error for {query_date_time}: {e}")
+        return {
+            "status": "error",
+            "reason": "scraping_failed",
+            "error": str(e),
+            "timestamp": str(query_date_time)
+        }
+        
+    except Exception as e:
+        # Catch-all for unexpected errors
+        print(f"Unexpected error for {query_date_time}: {type(e).__name__} - {e}")
+        return {
+            "status": "error",
+            "reason": "unexpected_error",
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "timestamp": str(query_date_time)
+        }
     
 
+#added db_conn as parameter
 def lambda_handler(event, context):
-    return scrap_and_upload(run_datetime)
+    conn = get_db_conn(os.environ['SECRET_ARN'])
+    return scrap_and_upload(run_datetime, conn)
 
 if __name__ == "__main__":
     event = {} 
