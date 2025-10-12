@@ -38,30 +38,32 @@ def rgb_to_dbz(img) :
     legend_rgb = np.array([c for c, _ in legend], dtype=np.int16)   # (K,3) , pull and convert to array for vectorised 
     legend_dbz = np.array([z for _, z in legend], dtype=np.float32) # (K,) 
 
-    # 3) flatten pixels for vectorized distance calc
+    #flatten pixels for vectorized distance calc
     flat = rgb.reshape(-1, 3) # from grid to single list of each pixel
     N, K = flat.shape[0], legend_rgb.shape[0]
 
-    # 4) l2 distances to all legend colors (N,K)
+    #l2 distances to all legend colors (N,K)
     d2 = np.sum((flat[:, None, :] - legend_rgb[None, :, :])**2, axis=2)  # squared distances
-    d  = np.sqrt(d2, dtype=np.float32)
+    d  = np.sqrt(d2, dtype=np.float32) 
 
-    # 5) find top 2 closest
-    nearest_two = np.argsort(d, axis=1)[:, :2]   
-    i0 = nearest_two[:, 0]                      
+    #find top 2 closest
+    nearest_two = np.argsort(d, axis=1)[:, :2] # sort against all colors on the legend
+    i0 = nearest_two[:, 0] # extract the index to map back to dbz value                 
     i1 = nearest_two[:, 1]                      
 
-    d0 = d[np.arange(N), i0]                     
+    d0 = d[np.arange(N), i0] # returns actual distance between each pixel and the nearest color                 
     d1 = d[np.arange(N), i1]                     
-    z0 = legend_dbz[i0]                            
+    z0 = legend_dbz[i0] # map the dbz value           
     z1 = legend_dbz[i1]                             
 
 
-    exact = (d0 == 0.0)
+    exact = (d0 == 0.0) # the first closest is exact 
     # start with zeros
     dbz_flat = np.zeros(N, dtype=np.float32)
 
     eps = 1e-6 # to prevent 0 division
+
+    # weighted interpolation
     w0 = np.where(exact, 1.0, 1.0 / np.maximum(d0, eps))
     w1 = np.where(exact, 0.0, 1.0 / np.maximum(d1, eps))
     num = w0 * z0 + w1 * z1
@@ -69,12 +71,12 @@ def rgb_to_dbz(img) :
     dbz_flat = np.where(exact, z0, num / np.maximum(den, eps))
 
     dbz_grid = dbz_flat.reshape(H, W)
-    dbz_grid[~mask] = float(0)
+    dbz_grid[~mask] = float(0) # anything that was transparent ie no rain , set dbz = 0 
 
     return np.rint(dbz_grid).astype(int)
 
 def binary_storm_mask(dbz_grid,threshold_dbz) : 
-    mask = (dbz_grid >= threshold_dbz).astype(np.uint8)
+    mask = (dbz_grid >= threshold_dbz).astype(np.uint8) # binary mask 
     return mask
 
 def filter_by_area(storm_mask
