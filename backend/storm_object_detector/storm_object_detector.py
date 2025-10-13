@@ -1,6 +1,7 @@
 from datetime import datetime 
 import pandas as pd
 import numpy as np
+import math
 
 
 
@@ -63,6 +64,20 @@ def metric_threshold_calc(
         if sum(threshold_flags) == 4:
                 res = True
         return res
+
+def x_y_distance(
+        tuple
+        ,x2
+        ,y2
+) : 
+        if isinstance(tuple, float) and np.isnan(tuple):
+                d = np.inf
+        else:
+                x1 = tuple[0]
+                y1 = tuple[1]
+                d = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+
+        return d
 ########################################################################
 
 ########################################################################
@@ -95,6 +110,17 @@ def storm_object_checker(
         curr_storm = storm_pixel_coordinates(storm_id, possible_storm_grid)
 
         nearby_stations = pd.merge(weather_data_df,curr_storm,how='inner' , on = 'coord')
+
+        # storm does not encompass any stations
+        if nearby_stations.shape[0] == 0:
+                # find centriod point first
+                xs, ys = zip(*curr_storm["coord"])
+                anchor_y = round(float(ys.mean()),0)
+                anchor_x = round(float(xs.mean()),0)
+                weather_data_df['distance_to_station'] = weather_data_df['coord'].apply(lambda x: x_y_distance(x,anchor_x,anchor_y))
+                weather_data_df.sort_values(by='distance_to_station',ascending=True,inplace=True,na_position='last')
+                # call and return nearest station 
+                nearby_stations = weather_data_df.head(1)
 
         res = metric_threshold_calc(nearby_stations,wind_speed_threshold,rainfall_threshold,temperature_threshold,humidty_threshold)
         
