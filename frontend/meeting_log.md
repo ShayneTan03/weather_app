@@ -7,7 +7,6 @@
 [ ] Delegate tasks - 2 frontend dev and 2 keep in track with wiki/interviews (tentative)  
 
 ## Things to ask Hock Leong:
-[ ] Is interview necessary for our dataset?  
 [O] Wiki - how should we structure it and is there any sample available  
 
 
