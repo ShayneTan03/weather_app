@@ -4,6 +4,7 @@ import { Container, Row, Col, Card} from "react-bootstrap";
 import { ArrowUp, ArrowDown, Clock} from "react-bootstrap-icons";
 import Header from "./Header";
 import { MetricRow } from "./Metrics";
+import Navigation from "./Navigation";
 
 function Dashboard() {
   const [analysisTimeframe, setAnalysisTimeframe] = useState("monthly"); // default toggle
@@ -67,15 +68,29 @@ function Dashboard() {
     hole: 0.5,
   };
 
+  const [activeView , setActiveView] = useState('map'); // Default => show Map view
+
   return (
     <Container fluid className="py-4">
-      
+
       <Header
         analysisTimeframe={analysisTimeframe}
         setAnalysisTimeframe={setAnalysisTimeframe}
         title='Storm Tracker Dashboard'
         subtitle='Track storms over different intervals'
       />
+
+      <div className = 'my-4'>
+        <Navigation
+          activeView = {activeView}
+          setActiveView = {setActiveView}
+        />
+      </div>
+
+      <div className="mt-4"> 
+        {activeView === 'map' && <Map />}
+        {activeView === 'plot' && <Plot />}
+      </div>
 
       <MetricRow
         metrics={[
