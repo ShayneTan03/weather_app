@@ -94,6 +94,8 @@ def storm_object_checker(
         ,rainfall_threshold
         ,temperature_threshold
         ,humidty_threshold
+
+        ,dist_tol
 ): 
         """
         This function is meant to be vectorised on a dataframe, to gauge if the storm meets required thresholds
@@ -121,6 +123,9 @@ def storm_object_checker(
                 anchor_x = round(float(np.mean(xs)),0)
                 weather_data_df['distance_to_station'] = weather_data_df['coord'].apply(lambda x: x_y_distance(x,anchor_x,anchor_y))
                 weather_data_df.sort_values(by='distance_to_station',ascending=True,inplace=True,na_position='last')
+                if weather_data_df['distance_to_station'].iloc[0] <= dist_tol:
+                        res = True
+                        return res 
                 # call and return nearest station 
                 nearby_stations = weather_data_df.head(1)
 
