@@ -37,13 +37,13 @@ def metric_threshold_calc(
 
         # if single station 
         if input_df.shape[0] == 1: 
-                if input_df['wind_speed_knots'] >= wind_speed_threshold:
+                if input_df['wind_speed_knots'].iloc[0] >= wind_speed_threshold:
                         threshold_flags[0] = True
-                if input_df['rainfall_mm'] >= rainfall_threshold:
+                if input_df['rainfall_mm'].iloc[0] >= rainfall_threshold:
                         threshold_flags[1] = True
-                if input_df['temperature_c'] >= temperature_threshold:
+                if input_df['temperature_c'].iloc[0] <= temperature_threshold:
                         threshold_flags[2] = True
-                if input_df['humidity_pct'] >= humidty_threshold:
+                if input_df['humidity_pct'].iloc[0] >= humidty_threshold:
                         threshold_flags[3] = True
 
 
@@ -64,6 +64,7 @@ def metric_threshold_calc(
         if sum(threshold_flags) == 4:
                 res = True
         return res
+
 
 def x_y_distance(
         tuple
@@ -110,13 +111,14 @@ def storm_object_checker(
         curr_storm = storm_pixel_coordinates(storm_id, possible_storm_grid)
 
         nearby_stations = pd.merge(weather_data_df,curr_storm,how='inner' , on = 'coord')
-
+        
         # storm does not encompass any stations
         if nearby_stations.shape[0] == 0:
                 # find centriod point first
                 xs, ys = zip(*curr_storm["coord"])
-                anchor_y = round(float(ys.mean()),0)
-                anchor_x = round(float(xs.mean()),0)
+
+                anchor_y = round(float(np.mean(ys)),0)
+                anchor_x = round(float(np.mean(xs)),0)
                 weather_data_df['distance_to_station'] = weather_data_df['coord'].apply(lambda x: x_y_distance(x,anchor_x,anchor_y))
                 weather_data_df.sort_values(by='distance_to_station',ascending=True,inplace=True,na_position='last')
                 # call and return nearest station 
