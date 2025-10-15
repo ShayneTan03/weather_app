@@ -6,10 +6,10 @@ import numpy as np
 from scipy.ndimage import label
 import pandas as pd
 import matplotlib.pyplot as plt
+from skimage.color import rgb2lab
 
 ######################################################################################
 # this part is from radar_image_processor.py
-
 # convert jpeg to RGBA 
 legend = [
     ((  0, 255, 255),  5.0),  # cyan
@@ -24,56 +24,66 @@ legend = [
     ((255,   0, 255), 70.0),  # magenta/purple
 ]
 
-def rgb_to_dbz(img) :
-    img_convert = img.convert('RGBA')
-    rgba_array = np.array(img_convert,dtype= np.uint8)
+def rgb_to_dbz(img, use_lab=True, snap_tol=8.0, alpha_min=10):
+    rgba = np.array(img.convert('RGBA'), dtype=np.uint8)
+    rgb  = rgba[..., :3]
+    alpha = rgba[..., 3]
+    H, W = rgb.shape[:2]
 
-    # decompose the channels
-    rgb = rgba_array[... , :3] 
-    alpha = rgba_array[... , 3]
-    H, W = rgb.shape[:2] # storing image dimensions
-    mask = alpha > 0 # for downstream boolean masking
+    # Legend arrays
+    legend_rgb = np.array([c for c, _ in legend], dtype=np.float32)     # (K,3)
+    legend_dbz = np.array([z for _, z in legend], dtype=np.float32)     # (K,)
+    K = legend_rgb.shape[0]
 
-    # legend arrays
-    legend_rgb = np.array([c for c, _ in legend], dtype=np.int16)   # (K,3) , pull and convert to array for vectorised 
-    legend_dbz = np.array([z for _, z in legend], dtype=np.float32) # (K,) 
+    # Prepare working color arrays
+    flat_rgb = rgb.reshape(-1, 3).astype(np.float32)                    # (N,3)
 
-    #flatten pixels for vectorized distance calc
-    flat = rgb.reshape(-1, 3) # from grid to single list of each pixel
-    N, K = flat.shape[0], legend_rgb.shape[0]
+    if use_lab:
+        # Convert both to Lab in [0,1] input range
+        legend_lab = rgb2lab(legend_rgb[None, ...] / 255.0)[0]          # (K,3)
+        flat_lab   = rgb2lab(flat_rgb[None, ...]   / 255.0)[0]          # (N,3)
+        # Distances in Lab (DeltaE ~ Euclidean here)
+        d = np.sqrt(np.sum((flat_lab[:, None, :] - legend_lab[None, :, :])**2, axis=2), dtype=np.float32)  # (N,K)
+    else:
+        # Euclidean in RGB
+        d = np.sqrt(np.sum((flat_rgb[:, None, :] - legend_rgb[None, :, :])**2, axis=2), dtype=np.float32)  # (N,K)
 
-    #l2 distances to all legend colors (N,K)
-    d2 = np.sum((flat[:, None, :] - legend_rgb[None, :, :])**2, axis=2)  # squared distances
-    d  = np.sqrt(d2, dtype=np.float32) 
+    # closest 2 two legend bins
+    nearest_two = np.argsort(d, axis=1)[:, :2]  # (N,2)
+    i0 = nearest_two[:, 0]                      # nearest index
+    i1 = nearest_two[:, 1]                      # second nearest
 
-    #find top 2 closest
-    nearest_two = np.argsort(d, axis=1)[:, :2] # sort against all colors on the legend
-    i0 = nearest_two[:, 0] # extract the index to map back to dbz value                 
-    i1 = nearest_two[:, 1]                      
+    d0 = d[np.arange(d.shape[0]), i0]
+    d1 = d[np.arange(d.shape[0]), i1]
+    z0 = legend_dbz[i0]
+    z1 = legend_dbz[i1]
 
-    d0 = d[np.arange(N), i0] # returns actual distance between each pixel and the nearest color                 
-    d1 = d[np.arange(N), i1]                     
-    z0 = legend_dbz[i0] # map the dbz value           
-    z1 = legend_dbz[i1]                             
+    
+    dbz_flat = np.zeros(d.shape[0], dtype=np.float32)
 
+    # snap within tolerance to exact bin (handles anti-aliased purple)
+    snap_mask = (d0 <= float(snap_tol))
+    dbz_flat[snap_mask] = z0[snap_mask]
 
-    exact = (d0 == 0.0) # the first closest is exact 
-    # start with zeros
-    dbz_flat = np.zeros(N, dtype=np.float32)
-
-    eps = 1e-6 # to prevent 0 division
-
-    # weighted interpolation
-    w0 = np.where(exact, 1.0, 1.0 / np.maximum(d0, eps))
-    w1 = np.where(exact, 0.0, 1.0 / np.maximum(d1, eps))
-    num = w0 * z0 + w1 * z1
+    # else, blend by inverse distance between the two closest bins
+    rem = ~snap_mask
+    eps = 1e-6
+    w0 = 1.0 / np.maximum(d0[rem], eps)
+    w1 = 1.0 / np.maximum(d1[rem], eps)
+    num = w0 * z0[rem] + w1 * z1[rem]
     den = w0 + w1
-    dbz_flat = np.where(exact, z0, num / np.maximum(den, eps))
+    dbz_flat[rem] = num / np.maximum(den, eps)
 
+    # reshape
     dbz_grid = dbz_flat.reshape(H, W)
-    dbz_grid[~mask] = float(0) # anything that was transparent ie no rain , set dbz = 0 
 
-    return np.rint(dbz_grid).astype(int)
+    # drop true background
+    if alpha_min is not None:
+        mask = (alpha > alpha_min)
+        dbz_grid[~mask] = 0.0
+
+    # return integers
+    return np.rint(dbz_grid).astype(np.int32)
 
 def binary_storm_mask(dbz_grid,threshold_dbz) : 
     mask = (dbz_grid >= threshold_dbz).astype(np.uint8) # binary mask 
