@@ -179,7 +179,7 @@ def filter_by_area(storm_mask
         centroid_x = float(xs.mean()) if area_px > 0 else np.nan
 
         records.append({
-            "new_id": new_id,
+            "grid_id": new_id,
             "area_px": area_px,
             "peak_dbz": round(peak_dbz, 2),
             "anchor_y": round(centroid_y,0), # just round to near whole number, for down stream processing
@@ -190,7 +190,7 @@ def filter_by_area(storm_mask
 
     storm_df = pd.DataFrame.from_records(
         records,
-        columns=["new_id", "area_px", "peak_dbz", "anchor_y", "anchor_x", "centroid_y", "centroid_x"]
+        columns=["grid_id", "area_px", "peak_dbz", "anchor_y", "anchor_x", "centroid_y", "centroid_x"]
     )
 
     return labels_kept, storm_df
@@ -214,7 +214,7 @@ def image_to_possible_storm(
     ouputs: 
         possible_storm_grid : array of the same dimensions as input image, contains the labeled possible storms with unique label for each 
         possible_storm_df : contains metadata about the storm namely
-            - new_id : unique identifier
+            - grid_id : unique identifier
             - area_px : area of storm (calculated as number of pixel for now)
             - peak_dbz : maximum dbz value of a storm component
             - centroid_x : geometric mean of the storms' pixels x coordinate
@@ -446,15 +446,36 @@ final_storm_df = final_storm_df[final_storm_df['output']]
 
 # add time stamp first 
 final_storm_df['timestamp'] = ts # from above 
-final_storm_df.rename(columns = {})
+new_order = ['timestamp','grid_id','centroid_x','centroid_y','anchor_x','anchor_y','peak_dbz','area_px','output']
+final_storm_df = final_storm_df[new_order]
+final_storm_df.drop(columns = ['output'],inplace = True)
 
 
+# db schema : storm_observation
+# timestamp : same as previous tables 
+# grid_id : int 
+# centroid_x : float (juz need decimal)
+# centriod_y : float 
+# anchor_x : float
+# anchor_y : float 
+# peak_dbz : float 
+# area_px : float 
+
+
+
+# remove unwanted components 
+to_keep = final_storm_df["grid_id"].unique()
+final_storm_grid = np.where(np.isin(possible_storm_grid, to_keep), possible_storm_grid, 0)
 
 # grid data need to convert into byte data first 
 buf = io.BytesIO()
-np.save(buf, possible_storm_grid)   # Serialize the array to in-memory bytes
+np.save(buf, final_storm_grid)   # Serialize the array to in-memory bytes
 buf.seek(0)
 binary_data = pg8000.Binary(buf.read())
+
+# db schema : storm_grids
+# timestamp :same as previous tables 
+# grid_array : BYTEA (this one important)
 
 
 

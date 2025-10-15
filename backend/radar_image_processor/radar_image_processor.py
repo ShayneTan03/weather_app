@@ -8,7 +8,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 ######################################################################################
-# helpers 
+# this part is from radar_image_processor.py
 
 # convert jpeg to RGBA 
 legend = [
@@ -106,7 +106,7 @@ def filter_by_area(storm_mask
         comp = (labels_kept == new_id) # binary mask
 
         # area
-        area_px = int(comp.sum()) # sum of array 
+        area_px = int(comp.sum()) *0.088 # convert to km^2 
 
         # peak & anchor pixel 
         values = dbz_grid[comp] # pull reflectivity numbers for this storm
@@ -120,7 +120,7 @@ def filter_by_area(storm_mask
         centroid_x = float(xs.mean()) if area_px > 0 else np.nan
 
         records.append({
-            "new_id": new_id,
+            "grid_id": new_id,
             "area_px": area_px,
             "peak_dbz": round(peak_dbz, 2),
             "anchor_y": round(centroid_y,0), # just round to near whole number, for down stream processing
@@ -131,7 +131,7 @@ def filter_by_area(storm_mask
 
     storm_df = pd.DataFrame.from_records(
         records,
-        columns=["new_id", "area_px", "peak_dbz", "anchor_y", "anchor_x", "centroid_y", "centroid_x"]
+        columns=["grid_id", "area_px", "peak_dbz", "anchor_y", "anchor_x", "centroid_y", "centroid_x"]
     )
 
     return labels_kept, storm_df
@@ -155,7 +155,7 @@ def image_to_possible_storm(
     ouputs: 
         possible_storm_grid : array of the same dimensions as input image, contains the labeled possible storms with unique label for each 
         possible_storm_df : contains metadata about the storm namely
-            - new_id : unique identifier
+            - grid_id : unique identifier
             - area_px : area of storm (calculated as number of pixel for now)
             - peak_dbz : maximum dbz value of a storm component
             - centroid_x : geometric mean of the storms' pixels x coordinate
