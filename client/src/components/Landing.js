@@ -1,16 +1,7 @@
 import { useState } from "react";
-import {
-  Container,
-  Row,
-  Col,
-  Card,
-} from "react-bootstrap";
 import Plot from "react-plotly.js";
-import {
-  ArrowUp,
-  ArrowDown,
-  Clock,
-} from "react-bootstrap-icons";
+import { Container, Row, Col, Card} from "react-bootstrap";
+import { ArrowUp, ArrowDown, Clock} from "react-bootstrap-icons";
 import Header from "./Header";
 import { MetricRow } from "./Metrics";
 
