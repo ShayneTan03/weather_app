@@ -89,7 +89,7 @@ function Dashboard() {
       </div>
 
       <div className="mt-4"> 
-        {activeView === 'map' && <Map />}
+        {activeView === 'map' && <RadarMap />}
         {activeView === 'plot' && <Plot />}
       </div>
 
