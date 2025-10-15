@@ -5,6 +5,7 @@ import { ArrowUp, ArrowDown, Clock} from "react-bootstrap-icons";
 import Header from "./Header";
 import { MetricRow } from "./Metrics";
 import Navigation from "./Navigation";
+import RadarMap from "./RadarMap";
 
 function Dashboard() {
   const [analysisTimeframe, setAnalysisTimeframe] = useState("monthly"); // default toggle
@@ -171,7 +172,17 @@ function Dashboard() {
         </Col>
       </Row>
 
-
+      <Row className="justify-content-center mb-4">
+        <Col xs={12} md={8}>
+          <Card>
+            <Card.Body>
+              <Card.Title className="mb-5">Radar Map</Card.Title>
+              <RadarMap/>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+      
     </Container>
   );
 }
