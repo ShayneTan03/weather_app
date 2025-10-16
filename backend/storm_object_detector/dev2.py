@@ -12,6 +12,8 @@ from io import BytesIO
 import math
 from scipy.ndimage import label
 import io
+from skimage.color import rgb2lab
+from pg8000.dbapi import DatabaseError, ProgrammingError
 
 
 ####################################################################################################
@@ -393,7 +395,23 @@ def storm_object_checker(
 ## pipeline from 5 min radar image to list of possible storm, together with gridded component representation 
 
 ## timeframe is 5 minute
-ts = # datetime object 
+ts = # dione help me specify the format, im not sure which format u put in for the tables, i assume all the tables timestamp column is the same right
+
+####################################################################################################
+# threshold settings
+dbz_threshold = # currently i set 40, but can change according to mapping too
+min_area_threshold = # currently i set to 150, makes the most sense so far
+wind_speed_threshold = 
+rainfall_threshold =
+temperature_threshold =
+humidty_threshold =
+dist_tol = # currently i set as 40 (pixel distance)
+
+
+
+####################################################################################################
+
+
 
 ####################################################################################################
 ### data pulling from db
@@ -428,10 +446,9 @@ WHERE
 
 image_data = query_to_df(conn,image_query, (ts,))
 
-image_id = image_data['image_id'] # for downstream
 
 # pull image from s3, 
-image_byte_data = 
+image_byte_data = # dione help to fill in , i just need the corresponding data for this timestamp
 
 ####################################################################################################
 
@@ -443,13 +460,12 @@ image_byte_data =
 weather_and_station_data = weather_data.merge(station_data, on = 'station_id',how = 'left')
 
 
-
 ## storm_object_checker_algo
 possible_storm_grid, possible_storm_df = image_to_possible_storm(image_byte_data,dbz_threshold,min_area_threshold)
 
 final_storm_df = possible_storm_df.copy()
 
-final_storm_df['output'] = final_storm_df['new_id'].apply(lambda x: storm_object_checker(x,possible_storm_grid,weather_and_station_data,wind_speed_threshold,rainfall_threshold,temperature_threshold,humidty_threshold))
+final_storm_df['output'] = final_storm_df['new_id'].apply(lambda x: storm_object_checker(x,possible_storm_grid,weather_and_station_data,wind_speed_threshold,rainfall_threshold,temperature_threshold,humidty_threshold,dist_tol))
 
 final_storm_df = final_storm_df[final_storm_df['output']]
 ####################################################################################################
@@ -457,41 +473,100 @@ final_storm_df = final_storm_df[final_storm_df['output']]
 
 ####################################################################################################
 ### upload to db 
+if final_storm_df.shape[0] == 0 : #empty df 
+    print(f'no possible storms detected for {ts}, skipping db upload')
+else:
+    # add time stamp first 
+    final_storm_df['timestamp'] = ts # from above 
+    new_order = ['timestamp','grid_id','centroid_x','centroid_y','anchor_x','anchor_y','peak_dbz','area_px','output']
+    final_storm_df = final_storm_df[new_order]
+    final_storm_df.drop(columns = ['output'],inplace = True)
 
 
-# add time stamp first 
-final_storm_df['timestamp'] = ts # from above 
-new_order = ['timestamp','grid_id','centroid_x','centroid_y','anchor_x','anchor_y','peak_dbz','area_px','output']
-final_storm_df = final_storm_df[new_order]
-final_storm_df.drop(columns = ['output'],inplace = True)
+    # db schema : storm_observation
+    # timestamp : same as previous tables 
+    # grid_id : int 
+    # centroid_x : float (juz need decimal)
+    # centriod_y : float 
+    # anchor_x : float
+    # anchor_y : float 
+    # peak_dbz : float 
+    # area_px : float 
 
 
-# db schema : storm_observation
-# timestamp : same as previous tables 
-# grid_id : int 
-# centroid_x : float (juz need decimal)
-# centriod_y : float 
-# anchor_x : float
-# anchor_y : float 
-# peak_dbz : float 
-# area_px : float 
+    # NaN -> None so they become SQL NULL , there should be no null, but just safeguard
+    final_storm_df = final_storm_df.replace({np.nan: None})
+
+    # build rows for INSERT (order must match SQL)
+    rows = list(
+        final_storm_df[[
+            "timestamp",
+            "grid_id",
+            "centroid_x",
+            "centroid_y",
+            "anchor_x",
+            "anchor_y",
+            "peak_dbz",
+            "area_px",
+        ]].itertuples(index=False, name=None)
+    )
+
+    # SQLs
+    delete_sql_single = "DELETE FROM storm_observation WHERE timestamp = %s;"
+    insert_sql = """
+    INSERT INTO storm_observation (
+        timestamp, grid_id, centroid_x, centroid_y,
+        anchor_x, anchor_y, peak_dbz, area_px
+    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+    """
+
+    try:
+        with conn.cursor() as cur:
+            # drop rows if already present
+            cur.execute(delete_sql_single, (ts,))
+            # insert new rows after drop , pseudo overwrite because of primary key problem
+            cur.executemany(insert_sql, rows)
+
+        conn.commit()
+        print(f"uploaded storm data for {ts}")
+
+    except (DatabaseError, ProgrammingError):
+        conn.rollback()
+        raise
 
 
 
-# remove unwanted components 
-to_keep = final_storm_df["grid_id"].unique()
-final_storm_grid = np.where(np.isin(possible_storm_grid, to_keep), possible_storm_grid, 0)
-
-# grid data need to convert into byte data first 
-buf = io.BytesIO()
-np.save(buf, final_storm_grid)   # Serialize the array to in-memory bytes
-buf.seek(0)
-binary_data = pg8000.Binary(buf.read())
-
-# db schema : storm_grids
-# timestamp :same as previous tables 
-# grid_array : BYTEA (this one important)
 
 
+    # remove unwanted components 
+    to_keep = final_storm_df["grid_id"].unique()
+    final_storm_grid = np.where(np.isin(possible_storm_grid, to_keep), possible_storm_grid, 0)
 
-####################################################################################################
+    # grid data need to convert into byte data first 
+    buf = io.BytesIO()
+    np.save(buf, final_storm_grid)          
+    buf.seek(0)
+    binary_data = buf.read()               
+
+    sql = """
+    INSERT INTO radar_grid (timestamp, grid_data)
+    VALUES (%s, %s)
+    ON CONFLICT (timestamp)
+    DO UPDATE SET grid_data = EXCLUDED.grid_data;
+    """
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, (ts, binary_data))  
+        conn.commit()
+        print("Inserted or updated radar grid successfully.")
+    except (DatabaseError, ProgrammingError) as e:
+        conn.rollback()
+        print("Database error while inserting radar grid:")
+        raise
+
+    # db schema : storm_grids
+    # timestamp :same as previous tables 
+    # grid_array : BYTEA (this one important)
+
+    ####################################################################################################
