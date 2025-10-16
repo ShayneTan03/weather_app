@@ -1,34 +1,11 @@
-import { useEffect, useState } from "react";
 import {MapContainer, TileLayer, Marker, Popup, Circle} from "react-leaflet";
-import fetchHumidity from "../api/fetchHumidity";
 
-function SingaporeMap () {
+function SingaporeMap ({readings}) {
     const singaporeCoords = [1.3521, 103.8198];
-    const [readings, setReadings] = useState([]);
+     if (!readings) {
+        return <div>Loading radar data...</div>;
+    }
 
-    // any asynchronous logic should be handled within useEffect with a nested fn
-    // this will load the necessary data before loading the components of the web page
-    useEffect(() => {
-        async function loadData() {
-            try {
-                const [stationsArr,readings] = await fetchHumidity("2025-10-15");
-                const readingMap = stationsArr.map((station) => ({
-                    ...station, //takes the kv pairs
-                    humidity: readings[station.id] ?? "NA"
-                }));
-
-                setReadings(readingMap);
-
-            } catch(err) {
-                console.error(err.message);
-            }
-        }
-        loadData();
-    }, []); 
-    // react checks if the values in the arr of dependencies changes
-    // reruns if there's any change
-    // if empty arr it runs once
-    // otherwise i.e [date] it runs whenever the date changes 
     return (
         <div id="map-container">
             <MapContainer
@@ -64,9 +41,11 @@ function SingaporeMap () {
 };
 
 function RadarMap(
+    {readings}
 ) {
     return (
         <SingaporeMap 
+            readings={readings}
         />
     );
 }

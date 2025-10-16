@@ -24,23 +24,38 @@ import {Button, ButtonGroup} from 'react-bootstrap';
 //     );
 // };
 
-function Navigation({activeView, setActiveView}) {
+function Navigation({activeView, setActiveView, buttonArr}) {
+
     return (
         <ButtonGroup>
-            <Button
-                variant = {activeView === 'map'? 'primary' : 'outline-primary'}
-                onClick = {() => setActiveView('map')}
-                >
-                    Map
-            </Button>
-            <Button
-                variant = {activeView === 'plot'? 'primary' : 'outline-primary'}
-                onClick = {() => setActiveView('plot')}
-                >
-                    Plot
-            </Button>
+            {buttonArr.map((name) => {
+                return(
+                    <Button
+                        key={name}
+                        variant = {activeView === name ? 'primary' : 'outline-primary'}
+                        onClick = {() => setActiveView(name)}
+                        type='button'>
+                        {name}
+                    </Button>
+            )})}
         </ButtonGroup>
     );
+    // return (
+    //     <ButtonGroup>
+    //         <Button
+    //             variant = {activeView === 'map'? 'primary' : 'outline-primary'}
+    //             onClick = {() => setActiveView('map')}
+    //             >
+    //                 Map
+    //         </Button>
+    //         <Button
+    //             variant = {activeView === 'plot'? 'primary' : 'outline-primary'}
+    //             onClick = {() => setActiveView('plot')}
+    //             >
+    //                 Plot
+    //         </Button>
+    //     </ButtonGroup>
+    // );
 };
 
 export default Navigation;
