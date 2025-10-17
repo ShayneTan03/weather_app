@@ -465,7 +465,7 @@ possible_storm_grid, possible_storm_df = image_to_possible_storm(image_byte_data
 
 final_storm_df = possible_storm_df.copy()
 
-final_storm_df['output'] = final_storm_df['new_id'].apply(lambda x: storm_object_checker(x,possible_storm_grid,weather_and_station_data,wind_speed_threshold,rainfall_threshold,temperature_threshold,humidty_threshold,dist_tol))
+final_storm_df['output'] = final_storm_df['grid_id'].apply(lambda x: storm_object_checker(x,possible_storm_grid,weather_and_station_data,wind_speed_threshold,rainfall_threshold,temperature_threshold,humidty_threshold,dist_tol))
 
 final_storm_df = final_storm_df[final_storm_df['output']]
 ####################################################################################################
