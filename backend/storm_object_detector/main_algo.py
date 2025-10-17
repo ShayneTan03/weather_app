@@ -399,13 +399,14 @@ ts = # dione help me specify the format, im not sure which format u put in for t
 
 ####################################################################################################
 # threshold settings
-dbz_threshold = # currently i set 40, but can change according to mapping too
-min_area_threshold = # currently i set to 150, makes the most sense so far
-wind_speed_threshold = 
-rainfall_threshold =
-temperature_threshold =
-humidty_threshold =
-dist_tol = # currently i set as 40 (pixel distance)
+dbz_threshold = 40# currently i set 40, but can change according to mapping too
+min_area_threshold = 0# currently i set to 150, makes the most sense so far
+
+wind_speed_threshold = 5
+rainfall_threshold = 2
+temperature_threshold = 24
+humidty_threshold = 90
+dist_tol = 40
 
 
 
