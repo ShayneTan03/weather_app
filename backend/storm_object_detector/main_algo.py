@@ -65,6 +65,8 @@ def query_to_df(conn, query, params=None):
     return pd.DataFrame(data, columns=columns)
 
 
+## dione help to create conn object
+
 ####################################################################################################
 
 
