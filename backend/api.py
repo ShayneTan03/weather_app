@@ -132,5 +132,87 @@ def display_weatherobs():
     cur.close()
     return jsonify(data)
 
+@app.route('/list/stormobs', methods=["GET"])
+def stormobs():
+    """
+    responses:
+        200:
+        description: lists all storm observations
+    """
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM storm_observation;")
+    rows = cur.fetchall()
+    
+    # Convert to JSON-friendly format
+    colnames = [desc[0] for desc in cur.description]
+    data = [dict(zip(colnames, row)) for row in rows]
+
+    cur.close()
+    return jsonify(data)
+
+@app.route('/stormobs/<int:id>', methods=["GET"])
+def display_stormobs():
+    """
+    parameters:
+        id: id
+        in: path
+        type: int
+        required: true
+        description: id of storm observation to display
+    responses:
+        200:
+        description: displays information of one storm observation
+    """
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM storm_observation WHERE id = %s;",(id,))
+    
+    rows = cur.fetchall()
+
+    colnames = [desc[0] for desc in cur.description]
+    data = [dict(zip(colnames, row)) for row in rows]
+
+    cur.close()
+    return jsonify(data)
+
+@app.route('/list/storms', methods=["GET"])
+def storms():
+    """
+    responses:
+        200:
+        description: lists all storms
+    """
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM storm;")
+
+    rows = cur.fetchall()
+
+    colnames = [desc[0] for desc in cur.description]
+    data = [dict(zip(colnames, row)) for row in rows]
+
+    cur.close()
+    return jsonify(data)
+
+@app.route('/storm/<int:id>', methods=["GET"])
+def display_storm():
+    """
+    parameters:
+        id: id
+        in: path
+        type: int
+        required: true
+        description: id of storm observation to display
+    responses:
+        200:
+        description: displays information of one storm observation
+    """
+    cur = conn.cursor()
+    cur.exececute("SELECT * FROM storm WHERE id = %s;", (id,))
+    rows = cur.fetchall()
+    colnames = [desc[0] for desc in cur.description]
+    data = [dict(zip(colnames, row)) for row in rows]
+    cur.close()
+
+    return jsonify(data)
+
 if __name__ == '__main__':
     app.run(debug=True)
