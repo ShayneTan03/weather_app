@@ -20,19 +20,19 @@ import os
 #replace with your own credentials if running locally
 s3_client: boto3.client = boto3.client(
             "s3",
-            aws_access_key_id="SECRET_KEY_ID",
-            aws_secret_access_key="SECRET_ACCESS_KEY",
+            aws_access_key_id="ACCESS_KEY_ID",
+            aws_secret_access_key="ACCESS_SECRET_KEY",
             # aws_session_token="",
         )
 
 #secrets are stored on AWS secrets manager
 secrets_client = boto3.client('secretsmanager',
-            aws_access_key_id="SECRET_KEY_ID",
-            aws_secret_access_key="SECRET_ACCESS_KEY",
+            aws_access_key_id="ACCESS_KEY_ID",
+            aws_secret_access_key="ACCESS_SECRET_KEY",
             region_name='ap-southeast-2')
 s3 = boto3.client('s3', 
-            aws_access_key_id="SECRET_KEY_ID",
-            aws_secret_access_key="SECRET_ACCESS_KEY",
+            aws_access_key_id="ACCESS_KEY_ID",
+            aws_secret_access_key="ACCESS_SECRET_KEY",
             region_name='ap-southeast-2')
 
 # Global connection object to reuse between invocations (connection pooling benefit)
@@ -486,10 +486,28 @@ def lambda_handler(event, context):
     timestamps = generate_time_range(start_dt, end_dt, freq_min=5)
     print(f"Running for {len(timestamps)} timestamps: {timestamps[0]} → {timestamps[-1]}")
 
+    # results = []
+    # for ts in timestamps:
+    #     res = scrap_and_upload(ts, conn)
+    #     results.append(res)
+        
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    max_workers = min(10, len(timestamps))  # cap threads (API-safe)
     results = []
-    for ts in timestamps:
-        res = scrap_and_upload(ts, conn)
-        results.append(res)
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_ts = {executor.submit(scrap_and_upload, ts, get_db_conn(secret_arn)): ts for ts in timestamps}
+
+        for future in as_completed(future_to_ts):
+            ts = future_to_ts[future]
+            try:
+                res = future.result()
+                results.append(res)
+            except Exception as e:
+                print(f"Failed for {ts}: {type(e).__name__} - {e}")
+                results.append({"status": "error", "timestamp": str(ts), "error": str(e)})
+
 
     conn.close()
 
@@ -503,7 +521,7 @@ def lambda_handler(event, context):
 ## Local test
 if __name__ == "__main__":
     event = {
-        "start": "2025-10-01T00:00:00",
+        "start": "2025-10-20T00:40:00",
         "end": "2025-10-21T06:00:00"
     }
     context = {}
