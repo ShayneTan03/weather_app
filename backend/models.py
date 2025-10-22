@@ -4,7 +4,7 @@
 ###
 
 
-from sqlalchemy import Column, Integer, String, Float, Text, TIMESTAMP, ForeignKey, CheckConstraint
+from sqlalchemy import Column, Integer, String, Float, Text, TIMESTAMP, ForeignKey, CheckConstraint, UniqueConstraint
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
@@ -42,12 +42,14 @@ class StormObservation(Base):
     __tablename__ = "storm_observation"
 
     obs_id = Column(Integer, primary_key=True, index=True)
-    storm_id = Column(Integer, ForeignKey("storm.storm_id", ondelete="CASCADE"), nullable=False)
-    image_id = Column(Integer, ForeignKey("radar_image.image_id", ondelete="CASCADE"), nullable=False)
+    timestamp = Column(TIMESTAMP, nullable=False)
+    grid_id = Column(Integer, nullable=False)
     centroid_lat = Column(Float)
     centroid_lon = Column(Float)
-    area_km2 = Column(Float)
-    max_intensity = Column(Float)
+    anchor_x = Column(Float)
+    anchor_y = Column(Float)
+    peak_dBZ = Column(Float)
+    area_px = Column(Float)
 
     storm = relationship("Storm", back_populates="observations")
     radar_image = relationship("RadarImage", back_populates="observations")
@@ -77,3 +79,6 @@ class WeatherObservation(Base):
     humidity_pct = Column(Float)
 
     station = relationship("WeatherStation", back_populates="observations")
+    __table_args__ = (
+        UniqueConstraint("station_id", "timestamp", name="uq_station_timestamp"),
+    )
