@@ -8,9 +8,10 @@ import Navigation from "./Navigation";
 import fetchHumidity from "../api/fetchHumidity";
 import RadarMap from "./RadarMap";
 import Plot1 from "./Plot1";
+import StormFeatureAnalysis from "./FeatureAnalysis";
 
 function Dashboard() {
-     const [activeView, setActiveView] = useState("map"); 
+    const [activeView, setActiveView] = useState("map"); 
     const [mapView, setMapView] = useState("map"); // Default => show Map view
     const [analysisTimeframe, setAnalysisTimeframe] = useState("monthly"); // default toggle
     const [readings, setReadings] = useState(null);
@@ -172,57 +173,99 @@ function Dashboard() {
             </div>
 
             <div className="mt-4"> 
-                {activeView === 'map' && <RadarMap readings={readings}/>}
-                {activeView === 'plot' && <Plot1 Data1 = {Data1} />}
-            </div>
+                {/* {activeView === 'map' && <RadarMap readings={readings}/>} */}
+                {activeView === 'map' && (
+                    <>
+                        <MetricRow
+                            metrics={[
+                                {
+                                    title: "Frequency",
+                                    change: calculateChange(
+                                        avgRecent.stormCount,
+                                        avgHistorical.stormCount
+                                    ),
+                                    icon: <ArrowDown className="text-danger" />,
+                                    unit: "storms/month",
+                                    recent: avgRecent.stormCount,
+                                    historical: avgHistorical.stormCount,
+                                },
+                                {
+                                    title: "Duration",
+                                    change: calculateChange(
+                                        avgRecent.avgDuration,
+                                        avgHistorical.avgDuration
+                                    ),
+                                    icon: <Clock className="text-primary" />,
+                                    unit: "min avg",
+                                    recent: avgRecent.avgDuration,
+                                    historical: avgHistorical.avgDuration,
+                                },
+                                {
+                                    title: "Size",
+                                    change: calculateChange(
+                                        avgRecent.avgArea,
+                                        avgHistorical.avgArea
+                                    ),
+                                    unit: "km squared avg",
+                                    recent: avgRecent.avgArea,
+                                    historical: avgHistorical.avgArea,
+                                },
+                                {
+                                    title: "Distance",
+                                    change: calculateChange(
+                                        avgRecent.avgDistance,
+                                        avgHistorical.avgDistance
+                                    ),
+                                    icon: <ArrowUp className="text-warning" />,
+                                    unit: "km avg",
+                                    recent: avgRecent.avgDistance,
+                                    historical: avgHistorical.avgDistance,
+                                },
+                            ]}
+                        />
+                        <RadarMap readings={readings}/>
+                        <Row className="justify-content-center mb-4">
+                            <Col xs={12} md={8}>
+                                <Card>
+                                    <Card.Body>
+                                        <Card.Title className="mb-2">Radar Map</Card.Title>
+                                            <div className="my-4 mb-5">
+                                                <Navigation
+                                                    activeView={mapView}
+                                                    setActiveView={setMapView}
+                                                    buttonArr={["map","x", "y", "z"]}
+                                                />
+                                            </div>
+                                        {mapView === "map" && (
+                                            <RadarMap readings={readings} />
+                                        )}
+                                        {mapView === "x" && <p>x</p>}
+                                        {mapView === "y" && <p>y</p>}
+                                        {mapView === "z" && <p>z</p>}
+                                    </Card.Body>
+                                </Card>
+                            </Col>
+                        </Row>
+                    </>
+                )}
+                {/* {activeView === 'plot' && <Plot1 Data1 = {Data1} />} */}
+                {activeView === 'plot' && (
+                    <Row className="g-4"> 
+                        {/* Display Feature Analysis */}
+                        <StormFeatureAnalysis Data1={Data1} />
+                        {/* Wrap the Plot1 with Col and Card for cleaner layout */}
+                        <Col xs={12}> 
+                            <Card>
+                                <Card.Body>
+                                    {/* Display Plot1 */}
+                                    <Plot1 Data1 = {Data1} />
+                                </Card.Body>
+                            </Card>
+                        </Col>
 
-            <MetricRow
-                metrics={[
-                    {
-                        title: "Frequency",
-                        change: calculateChange(
-                            avgRecent.stormCount,
-                            avgHistorical.stormCount
-                        ),
-                        icon: <ArrowDown className="text-danger" />,
-                        unit: "storms/month",
-                        recent: avgRecent.stormCount,
-                        historical: avgHistorical.stormCount,
-                    },
-                    {
-                        title: "Duration",
-                        change: calculateChange(
-                            avgRecent.avgDuration,
-                            avgHistorical.avgDuration
-                        ),
-                        icon: <Clock className="text-primary" />,
-                        unit: "min avg",
-                        recent: avgRecent.avgDuration,
-                        historical: avgHistorical.avgDuration,
-                    },
-                    {
-                        title: "Size",
-                        change: calculateChange(
-                            avgRecent.avgArea,
-                            avgHistorical.avgArea
-                        ),
-                        unit: "km squared avg",
-                        recent: avgRecent.avgArea,
-                        historical: avgHistorical.avgArea,
-                    },
-                    {
-                        title: "Distance",
-                        change: calculateChange(
-                            avgRecent.avgDistance,
-                            avgHistorical.avgDistance
-                        ),
-                        icon: <ArrowUp className="text-warning" />,
-                        unit: "km avg",
-                        recent: avgRecent.avgDistance,
-                        historical: avgHistorical.avgDistance,
-                    },
-                ]}
-            />
+                    </Row>
+                )}
+            </div>
 
             <Row className="g-4 mb-4">
                 <Col lg={6}>
@@ -275,6 +318,8 @@ function Dashboard() {
                 </Col>
             </Row>
 
+            {/* Can delete this section since it is already implemented only in 'map' page 
+
             <Row className="justify-content-center mb-4">
                 <Col xs={12} md={8}>
                     <Card>
@@ -297,6 +342,8 @@ function Dashboard() {
                     </Card>
                 </Col>
             </Row>
+            
+            */}
         </Container>
     );
 }
