@@ -30,7 +30,8 @@ export function SummarizeStorms(storms) {
     });
 }
 
-export function rainfall_stormsize ({Data1}) {
+// changed the name to RainfallStormsize from rainfall_stormsize
+export function RainfallStormsize ({Data1}) {
     const summary = SummarizeStorms(Data1);
 
     const traces = summary.map((s) => ({
@@ -68,9 +69,10 @@ function Plot1(
 ) {
     
     return (
-        <plot1
-            rainfall_stormsize={Data1}
-        />
+        // <plot1
+        //     rainfall_stormsize={Data1}
+        // />
+        <RainfallStormsize Data1 = {Data1} />
     )
 }
 export default Plot1;
