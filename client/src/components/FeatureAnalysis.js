@@ -1,6 +1,8 @@
 import React, {useState} from "react";
 import {Card, Col, Row, Form} from 'react-bootstrap';
 
+// Hello I'm Yohei!
+
 /**
  * A simple card component that shows a single value
  */
