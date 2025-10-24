@@ -27,7 +27,7 @@ import {Button, ButtonGroup} from 'react-bootstrap';
 function Navigation({activeView, setActiveView, buttonArr}) {
 
     return (
-        <ButtonGroup>
+        <ButtonGroup className = 'w-100'>
             {buttonArr.map((name) => {
                 return(
                     <Button
