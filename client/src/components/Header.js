@@ -14,16 +14,6 @@ function Header({
                     <Card.Title>{title}</Card.Title>
                     <Card.Text className="text-muted">{subtitle}</Card.Text>
                 </div>
-
-                {/* <div className="d-flex gap-2">
-                    <Form.Select value={analysisTimeframe} onChange={(e) => setAnalysisTimeframe(e.target.value)}>
-
-                        <option value="hourly">Daily</option>
-                        <option value="daily">Weekly</option>
-                        <option value="monthly">Monthly</option>
-
-                    </Form.Select>
-                </div> */}
             </Card.Body>
         </Card>
     );
