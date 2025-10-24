@@ -30,19 +30,25 @@ export function SummarizeStorms(storms) {
     });
 }
 
-// changed the name to RainfallStormsize from rainfall_stormsize
 export function RainfallStormsize ({Data1}) {
     const summary = SummarizeStorms(Data1);
 
+    const globalMaxSize = Math.max(
+        3,
+        ...summary.flatMap((s) => (Array.isArray(s.size) && s.size.length ? s.size : [1]))
+    );
+    const sizeRef = (0.5 * globalMaxSize) / (30 ** 2);
     const traces = summary.map((s) => ({
         x: s.times,
         y: s.rainfall,
         mode: "markers+lines",
         name: s.stormId,
         marker: {
-            size: s.size,
-            opacity: 0.8,
-            line: {width: 1, color: 'DarkSlateGrey'}
+            size: s.size, 
+            sizemode: "area",
+            sizeref: sizeRef,
+            sizemin: 4, 
+            showscale: false,
         },
         line: {dash: "dot", width: 1},        
     }));
@@ -51,10 +57,26 @@ export function RainfallStormsize ({Data1}) {
         <Plot
             data={traces}
             layout={{
-                title: "Rainfall & Storm Size vs Time",
-                xaxis: { title: "Time" },
-                yaxis: { title: "Rainfall (mm)" },
-                hovermode: "x unified",   
+                title: {
+                text: "Rainfall & Storm Size vs Time",
+                font: { size: 16 },
+                },
+                xaxis: {
+                title: {
+                    text: "Time (hours)", // ← X-axis label
+                    font: { size: 14 },
+                },
+                tickfont: { size: 12 },
+                },
+                yaxis: {
+                title: {
+                    text: "Rainfall (mm)", // ← Y-axis label
+                    font: { size: 14 },
+                },
+                tickfont: { size: 12 },
+                },
+                hovermode: "x unified",
+                margin: { l: 60, r: 40, t: 50, b: 60 }, // add space for axis labels
             }}
             config = {{responsive: true }}
             style = {{width: "100%", height: "450px"}}

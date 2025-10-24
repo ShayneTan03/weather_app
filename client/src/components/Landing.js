@@ -267,56 +267,58 @@ function Dashboard() {
                 )}
             </div>
 
-            <Row className="g-4 mb-4">
-                <Col lg={6}>
-                    <Card>
-                        <Card.Body>
-                            <Card.Title>Storm Frequency Trend</Card.Title>
-                            <Plot
-                                data={[frequencyTrace]}
-                                layout={{
-                                    autosize: true,
-                                    margin: { t: 20, b: 40, l: 40, r: 20 },
-                                    xaxis: { title: "Period" },
-                                    yaxis: { title: "Storm Count" },
-                                    paper_bgcolor: "transparent",
-                                    plot_bgcolor: "transparent",
-                                }}
-                                config={{
-                                    responsive: true,
-                                    displayModeBar: false,
-                                }}
-                                style={{ width: "100%", height: "300px" }}
-                            />
-                        </Card.Body>
-                    </Card>
-                </Col>
+            {activeView === 'plot' && (
+                <Row className="g-4 mb-4">
+                    <Col lg={6}>
+                        <Card>
+                            <Card.Body>
+                                <Card.Title>Storm Frequency Trend</Card.Title>
+                                <Plot
+                                    data={[frequencyTrace]}
+                                    layout={{
+                                        autosize: true,
+                                        margin: { t: 20, b: 40, l: 40, r: 20 },
+                                        xaxis: { title: "Period" },
+                                        yaxis: { title: "Storm Count" },
+                                        paper_bgcolor: "transparent",
+                                        plot_bgcolor: "transparent",
+                                    }}
+                                    config={{
+                                        responsive: true,
+                                        displayModeBar: false,
+                                    }}
+                                    style={{ width: "100%", height: "300px" }}
+                                />
+                            </Card.Body>
+                        </Card>
+                    </Col>
 
-                <Col lg={6}>
-                    <Card>
-                        <Card.Body>
-                            <Card.Title>
-                                Storm Classification Distribution
-                            </Card.Title>
-                            <Plot
-                                data={[classificationTrace]}
-                                layout={{
-                                    autosize: true,
-                                    showlegend: false,
-                                    margin: { t: 20, b: 20, l: 20, r: 20 },
-                                    paper_bgcolor: "transparent",
-                                    plot_bgcolor: "transparent",
-                                }}
-                                config={{
-                                    responsive: true,
-                                    displayModeBar: false,
-                                }}
-                                style={{ width: "100%", height: "300px" }}
-                            />
-                        </Card.Body>
-                    </Card>
-                </Col>
-            </Row>
+                    <Col lg={6}>
+                        <Card>
+                            <Card.Body>
+                                <Card.Title>
+                                    Storm Classification Distribution
+                                </Card.Title>
+                                <Plot
+                                    data={[classificationTrace]}
+                                    layout={{
+                                        autosize: true,
+                                        showlegend: false,
+                                        margin: { t: 20, b: 20, l: 20, r: 20 },
+                                        paper_bgcolor: "transparent",
+                                        plot_bgcolor: "transparent",
+                                    }}
+                                    config={{
+                                        responsive: true,
+                                        displayModeBar: false,
+                                    }}
+                                    style={{ width: "100%", height: "300px" }}
+                                />
+                            </Card.Body>
+                        </Card>
+                    </Col>
+                </Row>
+            )}
 
             {/* Can delete this section since it is already implemented only in 'map' page 
 
