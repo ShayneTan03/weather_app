@@ -43,6 +43,9 @@ export function RainfallStormsize ({Data1}) {
         y: s.rainfall,
         mode: "markers+lines",
         name: s.stormId,
+        text: s.size.map((val) => `Storm size: ${val.toFixed(2)}`), 
+        hovertemplate:
+            "Time: %{x}<br>Rainfall: %{y} mm<br>%{text}<extra></extra>",
         marker: {
             size: s.size, 
             sizemode: "area",
