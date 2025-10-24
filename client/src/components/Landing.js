@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Plot from "react-plotly.js";
-import { Container, Row, Col, Card } from "react-bootstrap";
+import { Container, Row, Col, Card, Form } from "react-bootstrap";
 import { ArrowUp, ArrowDown, Clock } from "react-bootstrap-icons";
 import Header from "./Header";
 import { MetricRow } from "./Metrics";
@@ -13,7 +13,7 @@ import StormFeatureAnalysis from "./FeatureAnalysis";
 function Dashboard() {
     const [activeView, setActiveView] = useState("map"); 
     const [mapView, setMapView] = useState("map"); // Default => show Map view
-    const [analysisTimeframe, setAnalysisTimeframe] = useState("monthly"); // default toggle
+    const [analysisTimeframe, setAnalysisTimeframe] = useState("Daily"); // default toggle
     const [readings, setReadings] = useState(null);
 
     // any asynchronous logic should be handled within useEffect with a nested fn
@@ -171,11 +171,19 @@ function Dashboard() {
                 buttonArr={["map","plot"]}
                 />
             </div>
-
             <div className="mt-4"> 
-                {/* {activeView === 'map' && <RadarMap readings={readings}/>} */}
                 {activeView === 'map' && (
                     <>
+                        <Form.Select 
+                        value={analysisTimeframe} 
+                        onChange={(e) => setAnalysisTimeframe(e.target.value)}
+                        style={{ width: '120px', height: '32px', fontSize: '0.9rem' }}>
+
+                            <option value="hourly">Daily</option>
+                            <option value="daily">Weekly</option>
+                            <option value="monthly">Monthly</option>
+
+                        </Form.Select>
                         <MetricRow
                             metrics={[
                                 {
@@ -248,7 +256,6 @@ function Dashboard() {
                         </Row>
                     </>
                 )}
-                {/* {activeView === 'plot' && <Plot1 Data1 = {Data1} />} */}
                 {activeView === 'plot' && (
                     <Row className="g-4"> 
                         {/* Display Feature Analysis */}
@@ -319,33 +326,6 @@ function Dashboard() {
                     </Col>
                 </Row>
             )}
-
-            {/* Can delete this section since it is already implemented only in 'map' page 
-
-            <Row className="justify-content-center mb-4">
-                <Col xs={12} md={8}>
-                    <Card>
-                        <Card.Body>
-                            <Card.Title className="mb-2">Radar Map</Card.Title>
-                                <div className="my-4 mb-5">
-                                    <Navigation
-                                        activeView={mapView}
-                                        setActiveView={setMapView}
-                                        buttonArr={["map","x", "y", "z"]}
-                                    />
-                                </div>
-                            {mapView === "map" && (
-                                <RadarMap readings={readings} />
-                            )}
-                            {mapView === "x" && <p>x</p>}
-                            {mapView === "y" && <p>y</p>}
-                            {mapView === "z" && <p>z</p>}
-                        </Card.Body>
-                    </Card>
-                </Col>
-            </Row>
-            
-            */}
         </Container>
     );
 }
