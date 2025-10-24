@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Plot from "react-plotly.js";
-import { Container, Row, Col, Card } from "react-bootstrap";
+import { Container, Row, Col, Card, Form } from "react-bootstrap";
 import { ArrowUp, ArrowDown, Clock } from "react-bootstrap-icons";
 import Header from "./Header";
 import { MetricRow } from "./Metrics";
@@ -13,7 +13,7 @@ import StormFeatureAnalysis from "./FeatureAnalysis";
 function Dashboard() {
     const [activeView, setActiveView] = useState("map"); 
     const [mapView, setMapView] = useState("map"); // Default => show Map view
-    const [analysisTimeframe, setAnalysisTimeframe] = useState("monthly"); // default toggle
+    const [analysisTimeframe, setAnalysisTimeframe] = useState("Daily"); // default toggle
     const [readings, setReadings] = useState(null);
 
     // any asynchronous logic should be handled within useEffect with a nested fn
@@ -171,7 +171,18 @@ function Dashboard() {
                 buttonArr={["map","plot"]}
                 />
             </div>
+            <div className="d-flex gap-2">
+                    <Form.Select 
+                    value={analysisTimeframe} 
+                    onChange={(e) => setAnalysisTimeframe(e.target.value)}
+                    style={{ width: '120px', height: '32px', fontSize: '0.9rem' }}>
 
+                        <option value="hourly">Daily</option>
+                        <option value="daily">Weekly</option>
+                        <option value="monthly">Monthly</option>
+
+                    </Form.Select>
+            </div>
             <div className="mt-4"> 
                 {/* {activeView === 'map' && <RadarMap readings={readings}/>} */}
                 {activeView === 'map' && (
