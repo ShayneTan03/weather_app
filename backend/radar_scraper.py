@@ -1,3 +1,10 @@
+#########################
+# This script is used to pull D-2 radar images from NEA website
+# and store the images in S3 and metadata in PostgreSQL database.
+# The script is designed to be run as an AWS Lambda function, triggered daily
+# to fetch the previous day's data and update the database accordingly.
+#########################
+
 import os
 import json
 import boto3
@@ -15,30 +22,46 @@ def get_secret(secret_arn):
     resp = secrets_client.get_secret_value(SecretId=secret_arn)
     return json.loads(resp['SecretString'])
 
+# def get_db_conn(secret_arn):
+#     global _db_conn
+#     if _db_conn:
+#         try:
+#             cur = _db_conn.cursor()
+#             cur.execute("SELECT 1;")
+#             cur.close()
+#             return _db_conn
+#         except Exception:
+#             _db_conn = None
+#     secret = get_secret(secret_arn)
+#     host = secret['host']
+#     dbname = secret['dbname']
+#     user = secret['username']
+#     password = secret['password']
+#     port = int(secret.get('port', 5432))
+#     _db_conn = pg8000.connect(
+#         host=host,
+#         database=dbname,
+#         user=user,
+#         password=password,
+#         port=port
+#     )
+#     return _db_conn
+
+#instead of a global connection object, we will create a new connection each time
 def get_db_conn(secret_arn):
-    global _db_conn
-    if _db_conn:
-        try:
-            cur = _db_conn.cursor()
-            cur.execute("SELECT 1;")
-            cur.close()
-            return _db_conn
-        except Exception:
-            _db_conn = None
     secret = get_secret(secret_arn)
     host = secret['host']
     dbname = secret['dbname']
     user = secret['username']
     password = secret['password']
     port = int(secret.get('port', 5432))
-    _db_conn = pg8000.connect(
+    return pg8000.connect(
         host=host,
         database=dbname,
         user=user,
         password=password,
         port=port
     )
-    return _db_conn
 
 def fetch_image(url):
     # using different combination of header seems to help with the anti scrape problem
@@ -86,7 +109,13 @@ def upload_to_s3(bucket, key, data):
 def insert_metadata(conn, ts, range_km, url, s3_key, status='ok'):
     with conn.cursor() as cur:
         cur.execute("""
-            INSERT INTO radar_image (timestamp, range_km, url, s3_key, status)
+            INSERT INTO radar_image (
+                timestamp, 
+                range_km, 
+                url, 
+                s3_key, 
+                status
+            )
             VALUES (%s, %s, %s, %s, %s)
             ON CONFLICT (timestamp) DO UPDATE SET s3_key = EXCLUDED.s3_key, status = EXCLUDED.status,url = EXCLUDED.url;
         """, (ts, range_km, url, s3_key, status)) 
