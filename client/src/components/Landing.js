@@ -6,7 +6,7 @@ import Header from "./Header";
 import { MetricRow } from "./Metrics";
 import Navigation from "./Navigation";
 import fetchHumidity from "../api/fetchHumidity";
-import RadarMap from "./RadarMap";
+import RadarMap, {DetectedStorms} from "./RadarMap";
 import Plot1 from "./Plot1";
 import StormFeatureAnalysis from "./FeatureAnalysis";
 
@@ -232,7 +232,7 @@ function Dashboard() {
                             ]}
                         />
                         <RadarMap readings={readings}/>
-                        <Row className="justify-content-center mb-4">
+                        <Row className="justify-content-center mb-4 mt-5">
                             <Col xs={12} md={8}>
                                 <Card>
                                     <Card.Body>
@@ -252,6 +252,11 @@ function Dashboard() {
                                         {mapView === "z" && <p>z</p>}
                                     </Card.Body>
                                 </Card>
+                            </Col>
+                            <Col xs={12} md={4}>
+                                <div>
+                                <DetectedStorms readings={readings}/>
+                                </div>
                             </Col>
                         </Row>
                     </>
