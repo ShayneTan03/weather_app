@@ -2,8 +2,7 @@
 # this script is used to ingest real-time weather data from data.gov.sg API
 # and store the data in a PostgreSQL database.
 # The data includes wind speed, wind direction, rainfall, temperature, and humidity.
-# The script is designed to be run as an AWS Lambda function, triggered every 5 minutes
-# to fetch the latest data and update the database accordingly.
+# The script is designed to run locally, with the appropriate credentials and to backfill a certain date range.
 ######################
 
 import pandas as pd 
@@ -15,8 +14,26 @@ import pg8000
 import json
 import os 
 
-secrets_client = boto3.client('secretsmanager')
-s3 = boto3.client('s3')
+# secrets_client = boto3.client('secretsmanager')
+# s3 = boto3.client('s3')
+
+#replace with your own credentials if running locally
+s3_client: boto3.client = boto3.client(
+            "s3",
+            aws_access_key_id="ACCESS_KEY_ID",
+            aws_secret_access_key="ACCESS_SECRET_KEY",
+            # aws_session_token="",
+        )
+
+#secrets are stored on AWS secrets manager
+secrets_client = boto3.client('secretsmanager',
+            aws_access_key_id="ACCESS_KEY_ID",
+            aws_secret_access_key="ACCESS_SECRET_KEY",
+            region_name='ap-southeast-2')
+s3 = boto3.client('s3', 
+            aws_access_key_id="ACCESS_KEY_ID",
+            aws_secret_access_key="ACCESS_SECRET_KEY",
+            region_name='ap-southeast-2')
 
 # Global connection object to reuse between invocations (connection pooling benefit)
 _db_conn = None
@@ -81,6 +98,8 @@ def get_db_conn(secret_arn):
 
 def insert_metadata(conn,input_df):
     data_payload = input_df.to_records(index = False).tolist()
+    input_df['timestamp'] = pd.to_datetime(input_df['timestamp']).dt.to_pydatetime()
+    # print(data_payload)
     with conn.cursor() as cur:
         cur.executemany(
             #table name: weather_observation
@@ -261,13 +280,52 @@ def main_scrapper(
     temperature_df = temperature_api(query_date_time)
     humidity_df = humidity_api(query_date_time)
 
-    combined_df = wind_direction_df.merge(wind_speed_df,on='station_id',how = 'inner').merge(rainfall_df,on='station_id',how = 'inner').merge(temperature_df,on='station_id',how = 'inner').merge(humidity_df,on='station_id',how = 'inner')
+    combined_df = (
+        wind_direction_df
+        .merge(wind_speed_df, on='station_id', how='inner')
+        .merge(rainfall_df, on='station_id', how='inner')
+        .merge(temperature_df, on='station_id', how='inner')
+        .merge(humidity_df, on='station_id', how='inner')
+    )
 
-    # add timestamp and rearrange
-    combined_df['timestamp'] = pd.to_datetime(query_date_time)
-    combined_df = combined_df[['station_id','timestamp','wind_direction','wind_speed','rainfall_mm','temperature_c','humidity_pct']]
-# some issues with the data types, need to convert to correct types, will cont working on this when i m not dying
+    # --- handle timestamp correctly ---
+    # Assume query_date_time or timestamp is numeric (nanoseconds, ms, or seconds)
+    # if isinstance(query_date_time, (int, float)):
+    #     if query_date_time > 1e12:   # nanoseconds → seconds
+    #         query_date_time = query_date_time / 1e9
+    #     elif query_date_time > 1e10: # milliseconds → seconds
+    #         query_date_time = query_date_time / 1e3
+    #     dt = datetime.fromtimestamp(query_date_time)
+    # else:
+    #     dt = pd.to_datetime(query_date_time)  # parse string if needed
 
+    # --- handle timestamp correctly ---
+    # Ensure dt is a proper Python datetime
+    if isinstance(query_date_time, (int, float)):
+        # treat numeric timestamps (e.g. ms or s)
+        if query_date_time > 1e12:   # nanoseconds → seconds
+            query_date_time = query_date_time / 1e9
+        elif query_date_time > 1e10: # milliseconds → seconds
+            query_date_time = query_date_time / 1e3
+        dt = datetime.fromtimestamp(query_date_time)
+    else:
+        # Always return a python datetime object
+        dt = pd.to_datetime(query_date_time).to_pydatetime()
+    combined_df['timestamp'] = dt
+
+    # --- enforce correct column types ---
+    combined_df = combined_df.astype({
+        "station_id": str,
+        "wind_direction": float,
+        "wind_speed": float,
+        "rainfall_mm": float,
+        "temperature_c": float,
+        "humidity_pct": float
+    })
+
+    combined_df = combined_df[
+        ["station_id", "timestamp", "wind_direction", "wind_speed", "rainfall_mm", "temperature_c", "humidity_pct"]
+    ]
 
     # print(combined_df['station_id'].unique())
     # print(len(combined_df['station_id'].unique()))
@@ -356,11 +414,116 @@ def scrap_and_upload(query_date_time, conn):
 
 #added db_conn as parameter
 def lambda_handler(event, context):
-    conn = get_db_conn(os.environ['SECRET_ARN'])
+    secret_arn = os.environ.get('SECRET_ARN')
+
+    conn = get_db_conn(secret_arn)
     return scrap_and_upload(run_datetime, conn)
 
 if __name__ == "__main__":
     event = {} 
+    context = {}
+    print(lambda_handler(event, context))
+#################################################
+
+
+#################################################        
+
+from datetime import timedelta
+
+#################################################
+## main working functions 
+def scrap_and_upload(query_date_time, conn):
+    try:
+        if conn is None:
+            raise ValueError('Database connection is None')
+
+        result = main_scrapper(query_date_time)
+
+        if result is None or result.empty:
+            raise ValueError(f'Scraping returned no results for {query_date_time}')
+
+        insert_metadata(conn, result)
+        print(f'Success for {query_date_time} ({len(result)} records)')
+        return {"status": "success", "timestamp": str(query_date_time), "records_inserted": len(result)}
+
+    except Exception as e:
+        print(f"Error for {query_date_time}: {type(e).__name__} - {e}")
+        return {"status": "error", "timestamp": str(query_date_time), "error": str(e), "error_type": type(e).__name__}
+
+
+#################################################
+## helper: generate a 5-min interval time range
+def generate_time_range(start_dt, end_dt, freq_min=5):
+    """Generate ISO-format timestamps every `freq_min` minutes."""
+    times = []
+    dt = start_dt
+    while dt <= end_dt:
+        times.append(dt.isoformat())
+        dt += timedelta(minutes=freq_min)
+    return times
+
+
+#################################################
+## Lambda handler – now supports date range backfill
+def lambda_handler(event, context):
+    secret_arn = os.environ.get('SECRET_ARN', 'arn:aws:secretsmanager:ap-southeast-2:441130535215:secret:prod/storm-tracking/postgresql-XrpBps')
+
+    conn = get_db_conn(secret_arn)
+
+    # Default: current 5-min slot
+    end_dt = datetime.today().replace(second=0, microsecond=0)
+    start_dt = end_dt
+    print(start_dt)
+
+    # Allow backfill through event or env vars
+    if "start" in event and "end" in event:
+        start_dt = pd.to_datetime(event["start"])
+        end_dt = pd.to_datetime(event["end"])
+    elif os.environ.get("BACKFILL_START") and os.environ.get("BACKFILL_END"):
+        start_dt = pd.to_datetime(os.environ["BACKFILL_START"])
+        end_dt = pd.to_datetime(os.environ["BACKFILL_END"])
+
+    timestamps = generate_time_range(start_dt, end_dt, freq_min=5)
+    print(f"Running for {len(timestamps)} timestamps: {timestamps[0]} → {timestamps[-1]}")
+
+    # results = []
+    # for ts in timestamps:
+    #     res = scrap_and_upload(ts, conn)
+    #     results.append(res)
+        
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    max_workers = min(10, len(timestamps))  # cap threads (API-safe)
+    results = []
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_ts = {executor.submit(scrap_and_upload, ts, get_db_conn(secret_arn)): ts for ts in timestamps}
+
+        for future in as_completed(future_to_ts):
+            ts = future_to_ts[future]
+            try:
+                res = future.result()
+                results.append(res)
+            except Exception as e:
+                print(f"Failed for {ts}: {type(e).__name__} - {e}")
+                results.append({"status": "error", "timestamp": str(ts), "error": str(e)})
+
+
+    conn.close()
+
+    success = sum(1 for r in results if r["status"] == "success")
+    print(f"Completed: {success}/{len(results)} successful uploads.")
+
+    return {"summary": {"total": len(results), "success": success}, "details": results}
+
+
+#################################################
+## Local test
+if __name__ == "__main__":
+    event = {
+        "start": "2025-10-20T00:40:00",
+        "end": "2025-10-21T06:00:00"
+    }
     context = {}
     print(lambda_handler(event, context))
 #################################################

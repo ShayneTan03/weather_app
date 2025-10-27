@@ -17,8 +17,12 @@ import os
 import json
 import boto3
 import requests
-import psycopg2
+import pg8000
 from datetime import datetime, timezone
+
+## to do on this script: 
+# change psycopg2 to pg8000
+# change the get_db_conn function to use pg8000 and remove global conn
 
 #secrets are stored on AWS secrets manager
 secrets_client = boto3.client('secretsmanager')
@@ -31,23 +35,40 @@ def get_secret(secret_arn):
     resp = secrets_client.get_secret_value(SecretId=secret_arn)
     return json.loads(resp['SecretString'])
 
+# def get_db_conn(secret_arn):
+#     global _db_conn
+#     if _db_conn:
+#         try:
+#             _db_conn.cursor().execute("SELECT 1;")
+#             return _db_conn
+#         except Exception:
+#             _db_conn = None
+#     secret = get_secret(secret_arn)
+#     host = secret['host']
+#     dbname = secret['dbname']
+#     user = secret['username']
+#     password = secret['password']
+#     port = secret.get('port', 5432)
+#     _db_conn = psycopg2.connect(host=host, dbname=dbname, user=user, password=password, port=port)
+#     _db_conn.autocommit = True
+#     return _db_conn
+
+
+#instead of a global connection object, we will create a new connection each time
 def get_db_conn(secret_arn):
-    global _db_conn
-    if _db_conn:
-        try:
-            _db_conn.cursor().execute("SELECT 1;")
-            return _db_conn
-        except Exception:
-            _db_conn = None
     secret = get_secret(secret_arn)
     host = secret['host']
     dbname = secret['dbname']
     user = secret['username']
     password = secret['password']
-    port = secret.get('port', 5432)
-    _db_conn = psycopg2.connect(host=host, dbname=dbname, user=user, password=password, port=port)
-    _db_conn.autocommit = True
-    return _db_conn
+    port = int(secret.get('port', 5432))
+    return pg8000.connect(
+        host=host,
+        database=dbname,
+        user=user,
+        password=password,
+        port=port
+    )
 
 def fetch_image(url):
     # using different combination of header seems to help with the anti scrape problem
@@ -102,6 +123,7 @@ def insert_metadata(conn, ts, range_km, url, s3_key, status='ok'):
             ON CONFLICT (timestamp) DO UPDATE SET s3_key = EXCLUDED.s3_key, status = EXCLUDED.status
         """, (ts, range_km, url, s3_key, status))
         conn.commit()
+        
 
 def lambda_handler(event, context):
     # compute timestamp (rounded to 5-min) or accept in event

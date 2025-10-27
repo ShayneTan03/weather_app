@@ -27,17 +27,20 @@ from tenacity import retry, stop_after_attempt, wait_fixed
 #replace with your own credentials if running locally
 s3_client: boto3.client = boto3.client(
             "s3",
-            aws_access_key_id="AWS_ACCESS_KEY_ID",
-            aws_secret_access_key="AWS_SECRET_ACCESS_KEY",
+            aws_access_key_id="AWS_ACCESS_KEY",
+            aws_secret_access_key="SECRET_ACCESS_KEY",
             # aws_session_token="",
         )
 
 #secrets are stored on AWS secrets manager
-secrets_client = boto3.client('secretsmanager', region_name='ap-southeast-2')
-s3 = boto3.client('s3', region_name='ap-southeast-2')
-
-# Global connection object to reuse between invocations (connection pooling benefit)
-_db_conn = None
+secrets_client = boto3.client('secretsmanager',
+            aws_access_key_id="SECRET_ACCESS_KEY_ID",
+            aws_secret_access_key="SECRET_ACCESS_KEY",
+            region_name='ap-southeast-2')
+s3 = boto3.client('s3', 
+            aws_access_key_id="SECRET_ACCESS_KEY_ID",
+            aws_secret_access_key="SECRET_ACCESS_KEY",
+            region_name='ap-southeast-2')
 
 
 def dynamic_date( 
@@ -61,30 +64,47 @@ def get_secret(secret_arn):
     resp = secrets_client.get_secret_value(SecretId=secret_arn)
     return json.loads(resp['SecretString'])
 
+# def get_db_conn(secret_arn):
+#     global _db_conn
+#     if _db_conn:
+#         try:
+#             cur = _db_conn.cursor()
+#             cur.execute("SELECT 1;")
+#             cur.close()
+#             return _db_conn
+#         except Exception:
+#             _db_conn = None
+#     secret = get_secret(secret_arn)
+#     host = secret['host']
+#     dbname = secret['dbname']
+#     user = secret['username']
+#     password = secret['password']
+#     port = int(secret.get('port', 5432))
+#     _db_conn = pg8000.connect(
+#         host=host,
+#         database=dbname,
+#         user=user,
+#         password=password,
+#         port=port
+#     )
+#     return _db_conn
+
+#instead of using a global connection, create a new connection for each thread to avoid "connection already closed" error
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
 def get_db_conn(secret_arn):
-    global _db_conn
-    if _db_conn:
-        try:
-            cur = _db_conn.cursor()
-            cur.execute("SELECT 1;")
-            cur.close()
-            return _db_conn
-        except Exception:
-            _db_conn = None
     secret = get_secret(secret_arn)
     host = secret['host']
     dbname = secret['dbname']
     user = secret['username']
     password = secret['password']
     port = int(secret.get('port', 5432))
-    _db_conn = pg8000.connect(
+    return pg8000.connect(
         host=host,
         database=dbname,
         user=user,
         password=password,
         port=port
     )
-    return _db_conn
 
 @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
 def fetch_image(url):
@@ -132,10 +152,17 @@ def fetch_image(url):
 def upload_to_s3(bucket, key, data):
     s3.put_object(Bucket=bucket, Key=key, Body=data) # overwrites by default
 
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
 def insert_metadata(conn, ts, range_km, url, s3_key, status='ok'):
     with conn.cursor() as cur:
         cur.execute("""
-            INSERT INTO radar_image (timestamp, range_km, url, s3_key, status)
+            INSERT INTO radar_image (
+                timestamp, 
+                range_km, 
+                url, 
+                s3_key, 
+                status
+            )
             VALUES (%s, %s, %s, %s, %s)
             ON CONFLICT (timestamp) DO UPDATE SET s3_key = EXCLUDED.s3_key, status = EXCLUDED.status,url = EXCLUDED.url;
         """, (ts, range_km, url, s3_key, status)) 
@@ -159,11 +186,14 @@ def process_timestamp(ts, url, range_km, s3_bucket, secret_arn):
             conn = get_db_conn(secret_arn)
             insert_metadata(conn, ts, range_km, url, None, 'missing')
         except Exception as e2:
+            print(f"Database error for {ts}: {e2}")
             return ('db_error', ts, str(e2))
         return ('fail', ts, e.response.status_code)
     except pg8000.dbapi.DatabaseError as e:
+        print(f"Database error for {ts}: {e}")
         return ('db_error', ts, str(e))
     except Exception as e:
+        print(f"Failed to process {url}: {e}")
         return ('fail', ts, str(e))
 
 def backfill(start_date, end_date):
@@ -189,6 +219,7 @@ def backfill(start_date, end_date):
     # dione: calls process_timestamp to download and upload to DB in parallel. (much faster execution)
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
         futures = [executor.submit(process_timestamp, *task) for task in tasks]
+        #print(futures)
         for future in concurrent.futures.as_completed(futures):
             result = future.result()
             if result[0] == 'success':
@@ -218,8 +249,8 @@ def lambda_handler(event, context):
 
 if __name__ == "__main__":
     event = {
-        "start_date" : "2025-06-23" # format is "2025-09-20" WITH quotes
-        ,"end_date" : "2025-08-30" 
+        "start_date" : "2025-09-01" # format is "2025-09-20" WITH quotes
+        ,"end_date" : "2025-10-06" 
         } ## if running locally, insert backfill date range here. 
     context = {}
     print(lambda_handler(event, context))
@@ -227,7 +258,7 @@ if __name__ == "__main__":
 
 # If running this on aws lambda, use the following JSON format in the test event to set the date range:
 # {
-#   "start_date": "2025-09-23",
-#   "end_date": "2025-06-25"
+#   "start_date": "2025-06-23",
+#   "end_date": "2025-09-23"
 # }
 # this will override the default date range in the main function

@@ -1,0 +1,14 @@
+services:
+  react-app:
+    build: .
+    container_name: react-app
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app               # Mount local code
+      - /app/node_modules    # Prevent node_modules overwrite
+    command: npm start
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true   
+      - WATCHPACK_POLLING=true     
