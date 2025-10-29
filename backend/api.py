@@ -1,7 +1,7 @@
 #This file contains all the apis that will directly support the frontend of this project.
 
 import datetime
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 import psycopg2
 from dotenv import load_dotenv
@@ -61,14 +61,11 @@ def initial_fn():
     print("Successful /api")
     return jsonify({'Hello': 'World!'})
 
-
 '''
 apis to build:
 - direct pull weather station data (e.g. coordinates, name, id)
 - direct pull storm observation data (e.g. temp, rainfall, humidity, wind speed, coordinates)
-- calculate validation metrics
 - identified storm objects?
-- identified storm trajectories?
 '''
 
 # direct pull and list weather station data
@@ -340,7 +337,7 @@ def stormobservations():
     except Exception as e:
         logger.error(f"Error fetching storm observations: {str(e)}")
         return make_response("error", message=str(e), code=500)
-    
+        
 ##get specific storm observation
 @cache.cached()
 @app.route('/stormobservation/<int:obs_id>', methods = ["GET"])
@@ -399,7 +396,7 @@ def storms():
     
     try: 
         cur = conn.cursor()
-        cur.execute("SELECT * FROM storm;")
+        cur.execute("SELECT * FROM storm WHERE duration > 0;")
         rows = cur.fetchall()
         
         # Convert to JSON-friendly format
@@ -417,46 +414,80 @@ def storms():
         logger.error(f"Error fetching storms: {str(e)}")
         return make_response("error", message=str(e), code=500)
     
-##get specific storm
-@cache.cached()
-@app.route('/storm/<int:storm_id>', methods = ["GET"])
-def display_storm(storm_id):
+##get specific storm based on timestamp
+@app.route('/storms', methods = ["GET"])
+@cache.cached(query_string=True)
+def storms_at_timestamp():
+    """
+    responses:
+        200:
+        description: displays information of storms active at queried timestamp
+    example URL: /storms?timestamp=2025-10-01%2010:00:00
+    """
+    timestamp = request.args.get('timestamp')
+
+    if not timestamp:
+        return jsonify({"error": "Missing 'timestamp' query parameter"}), 400
+    
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM storm WHERE (start_time <= %s AND end_time >= %s AND duration > 0);", (timestamp, timestamp))
+        rows = cur.fetchall()
+
+        # convert to JSON-friendly format
+        colnames = [desc[0] for desc in cur.description]
+        data = [dict(zip(colnames, row)) for row in rows]
+
+        cur.close()
+        logger.info("Stored new results in cache for /storms")
+
+    except Exception as e:
+        logger.error(f"Error fetching storms by time: {str(e)}")
+        return make_response("error", message=str(e), code=500)
+    
+    return make_response("success", data=data, message=f"Fetched all storms at {timestamp} successfully")
+
+@app.route('/list/stormobs', methods=["GET"])
+def stormobs():
+    """
+    responses:
+        200:
+        description: lists all storm observations
+    """
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM storm_observation;")
+    rows = cur.fetchall()
+    
+    # Convert to JSON-friendly format
+    colnames = [desc[0] for desc in cur.description]
+    data = [dict(zip(colnames, row)) for row in rows]
+
+    cur.close()
+    return jsonify(data)
+
+@app.route('/stormobs/<int:id>', methods=["GET"])
+def display_stormobs():
     """
     parameters:
         id: id
         in: path
         type: int
         required: true
-        description: id of storm to display
+        description: id of storm observation to display
     responses:
         200:
-        description: displays information of one storm
+        description: displays information of one storm observation
     """
-    cache_key = f"storm_{storm_id}"
-    data = cache.get(cache_key)
-    if data:
-        logger.info(f"Cache hit for storm {storm_id}")
-        return make_response("success", data=data, message=f"Fetched storm {storm_id} successfully from cache.")
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM storm_observation WHERE id = %s;",(id,))
     
-    try:
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM storm WHERE storm_id = %s;", (storm_id,))
-        rows = cur.fetchall()
-        
-        # Convert to JSON-friendly format
-        colnames = [desc[0] for desc in cur.description]
-        data = [dict(zip(colnames, row)) for row in rows]
+    rows = cur.fetchall()
 
-        cur.close()
-        
-        cache.set(cache_key, data)
-        logger.info("Stored new result in cache for /storm/<storm_id>")
-        
-        return make_response("success", data=data, message=f"Fetched storm {storm_id} successfully.")
-    
-    except Exception as e:
-        logger.error(f"Error fetching storm {storm_id}: {str(e)}")
-        return make_response("error", message=str(e), code=500)
+    colnames = [desc[0] for desc in cur.description]
+    data = [dict(zip(colnames, row)) for row in rows]
+
+    cur.close()
+    return jsonify(data)
 
 if __name__ == '__main__':
     app.run(debug=True)
