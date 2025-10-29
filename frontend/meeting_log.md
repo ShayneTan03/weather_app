@@ -7,7 +7,6 @@
 [ ] Delegate tasks - 2 frontend dev and 2 keep in track with wiki/interviews (tentative)  
 
 ## Things to ask Hock Leong:
-[ ] Is interview necessary for our dataset?  
 [O] Wiki - how should we structure it and is there any sample available  
 
 
@@ -24,5 +23,17 @@
 
 ## TODO:
 [ ] 5 complete interviews by 2nd October
-[ ] Interview questions, sourcing interviewees by this weekend
-[ ] Generate a prototype to be used in interviews
+[O] Interview questions, sourcing interviewees by this weekend
+[O] Generate a prototype to be used in interviews
+
+# **10 Oct 2025 19:00**
+
+## Ideas for the main dashboard
+* 3 toggle-able layes of information: 1. rainfall, 2. wind speed/direction (vector field), 3. storm
+* Storm - we have to set up a definition depending on some thresholds (minimum rainfall, minimum windspeed, minimum duration)
+
+## Ideas for the descriptive analysis tabs
+* time series plot with dual y axis, rainfall intensity and mean wind speed
+* frequency heatmap of wind speed against rainfall intensity
+
+## 
