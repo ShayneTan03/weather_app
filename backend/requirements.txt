@@ -1,3 +1,11 @@
 boto3
 requests
 pg8000
+datetime
+flask
+flask_cors
+psycopg2
+dotenv
+flask_caching
+os
+logging
