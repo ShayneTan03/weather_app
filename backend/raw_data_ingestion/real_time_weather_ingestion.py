@@ -264,10 +264,40 @@ def main_scrapper(
     combined_df = wind_direction_df.merge(wind_speed_df,on='station_id',how = 'inner').merge(rainfall_df,on='station_id',how = 'inner').merge(temperature_df,on='station_id',how = 'inner').merge(humidity_df,on='station_id',how = 'inner')
 
     # add timestamp and rearrange
-    combined_df['timestamp'] = pd.to_datetime(query_date_time)
-    combined_df = combined_df[['station_id','timestamp','wind_direction','wind_speed','rainfall_mm','temperature_c','humidity_pct']]
-# some issues with the data types, need to convert to correct types, will cont working on this when i m not dying
+    #combined_df['timestamp'] = pd.to_datetime(query_date_time)
+    combined_df = (
+        wind_direction_df
+        .merge(wind_speed_df, on='station_id', how='inner')
+        .merge(rainfall_df, on='station_id', how='inner')
+        .merge(temperature_df, on='station_id', how='inner')
+        .merge(humidity_df, on='station_id', how='inner')
+    )
 
+    # handle timestamp correctly 
+    # Ensure dt is a proper Python datetime
+    if isinstance(query_date_time, (int, float)):
+        # treat numeric timestamps (e.g. ms or s)
+        if query_date_time > 1e12:   # nanoseconds → seconds
+            query_date_time = query_date_time / 1e9
+        elif query_date_time > 1e10: # milliseconds → seconds
+            query_date_time = query_date_time / 1e3
+        dt = datetime.fromtimestamp(query_date_time)
+    else:
+        # Always return a python datetime object
+        dt = pd.to_datetime(query_date_time).to_pydatetime()
+    combined_df['timestamp'] = dt
+
+    # --- enforce correct column types ---
+    combined_df = combined_df.astype({
+        "station_id": str,
+        "wind_direction": float,
+        "wind_speed": float,
+        "rainfall_mm": float,
+        "temperature_c": float,
+        "humidity_pct": float
+    })
+    
+    combined_df = combined_df[['station_id','timestamp','wind_direction','wind_speed','rainfall_mm','temperature_c','humidity_pct']]
 
     # print(combined_df['station_id'].unique())
     # print(len(combined_df['station_id'].unique()))
