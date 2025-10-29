@@ -75,7 +75,7 @@ function Dashboard() {
             avgDistance: 13.5,
         },
     ];
-
+    //data for plot1
     const Data1 = [
     {
         stormId: "STORM_A",
@@ -168,11 +168,11 @@ function Dashboard() {
                 <Navigation
                 activeView = {activeView}
                 setActiveView = {setActiveView}
-                buttonArr={["map","plot"]}
+                buttonArr={["Storm Map","Feature Analysis"]}
                 />
             </div>
             <div className="mt-4"> 
-                {activeView === 'map' && (
+                {activeView === 'Storm Map' && (
                     <>
                         <Form.Select 
                         value={analysisTimeframe} 
@@ -261,10 +261,17 @@ function Dashboard() {
                         </Row>
                     </>
                 )}
-                {activeView === 'plot' && (
-                    <Row className="g-4"> 
+
+                    
+            </div>
+
+            <div className="mt-4">
+            {activeView === 'Feature Analysis' && (
+                <Col>
+
+                <Row className="g-4"> 
                         {/* Display Feature Analysis */}
-                        <StormFeatureAnalysis Data1={Data1} />
+                        {<StormFeatureAnalysis Data1={Data1} />}
                         {/* Wrap the Plot1 with Col and Card for cleaner layout */}
                         <Col xs={12}> 
                             <Card>
@@ -274,17 +281,14 @@ function Dashboard() {
                                 </Card.Body>
                             </Card>
                         </Col>
+                </Row>
 
-                    </Row>
-                )}
-            </div>
-
-            {activeView === 'plot' && (
                 <Row className="g-4 mb-4">
                     <Col lg={6}>
                         <Card>
                             <Card.Body>
-                                <Card.Title>Storm Frequency Trend</Card.Title>
+                                <Card.Title>Storm Features Against Rain Frequency</Card.Title>
+                                // FIXME: write code for plot2 and add plot2 here
                                 <Plot
                                     data={[frequencyTrace]}
                                     layout={{
@@ -330,7 +334,9 @@ function Dashboard() {
                         </Card>
                     </Col>
                 </Row>
-            )}
+                </Col>
+                )}
+            </div>
         </Container>
     );
 }
