@@ -2,6 +2,7 @@ backend/storm_object_detector/.env
 backend/storm_object_detector/dummy_generator
 backend/backfill_database/.env
 backend/backfill_database/weather_observation_backfill/.env
+backend/archive
 # Node modules
 /node_modules/
 
