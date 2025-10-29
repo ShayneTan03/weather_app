@@ -5,9 +5,8 @@ WORKDIR /app
 COPY backend_requirements.txt .
 COPY api.py .
 
-RUN pip install --no-cache-dir -r backend_requirement.txt
+RUN pip install --no-cache-dir -r backend_requirements.txt
 
 EXPOSE 5000
 
 CMD ["flask", "-A", "api", "run", "-h", "0.0.0.0", "-p", "5000"]
-
