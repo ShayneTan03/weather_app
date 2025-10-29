@@ -9,6 +9,9 @@ from sqlalchemy import pool
 
 from alembic import context
 
+from dotenv import load_dotenv
+import os
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
@@ -61,13 +64,14 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    load_dotenv()
     
-    db_hostname = os.environ["POSTGRES_HOST"]
-    db_port = os.environ["POSTGRES_PORT"]
-    db_name = os.environ["POSTGRES_DB"]
-    db_user = os.environ["POSTGRES_USER"]
-    db_password = os.environ["POSTGRES_PASSWORD"]
-    
+    db_hostname = os.environ["DB_HOST"]
+    db_port = os.environ["DB_PORT"]
+    db_name = os.environ["DB_NAME"]
+    db_user = os.environ["DB_USER"]
+    db_password = os.environ["DB_PASSWORD"]
+
     # connectable = engine_from_config(
     #     config.get_section(config.config_ini_section, {}),
     #     prefix="sqlalchemy.",
