@@ -1,19 +1,18 @@
 import React, { useState, useEffect, useRef } from "react";
+import { Row, Col, Card } from "react-bootstrap"; 
 import { DateRange } from "react-date-range";
 import { enUS } from "date-fns/locale";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
 
-// Global Date Range Picker component
-function GlobalDateRangePicker({ range, setRange }) {
+function DateRangePicker({ range, setRange }) {
     const [showPicker, setShowPicker] = useState(false);
     const pickerRef = useRef(null);
 
-    // close picker on outside click
     useEffect(() => {
         function onDocClick(e) {
-        if (!pickerRef.current) return;
-        if (!pickerRef.current.contains(e.target)) setShowPicker(false);
+            if (!pickerRef.current) return;
+            if (!pickerRef.current.contains(e.target)) setShowPicker(false);
         }
         if (showPicker) document.addEventListener("mousedown", onDocClick);
         return () => document.removeEventListener("mousedown", onDocClick);
@@ -23,90 +22,101 @@ function GlobalDateRangePicker({ range, setRange }) {
     const end = range[0].endDate;
 
     return (
-        <div style={{position: "relative", marginBottom: "1rem"}}>
-        {/* Top bar with a hotel.com-style Dates button */}
-        <div style={{ display: "flex", gap: 8, alignItems: "center"}}>
-            <DateButton
-            start={start}
-            end={end}
-            onClick={() => setShowPicker(v => !v)}
-            />
-        </div>
-    
-        {showPicker && (
-            <div
-            ref={pickerRef}
-            style={{
-                position: "absolute",
-                zIndex: 50,
-                marginTop: 8,
-                background: "white",
-                border: "1px solid #e5e7eb",
-                borderRadius: 12,
-                boxShadow: "0 10px 25px rgba(0,0,0,0.12)",
-                width: 620,
-                overflow: "hidden",
-            }}
-            >
-            <DateRange
-                locale={enUS}
-                onChange={(ranges) => {
-                    setRange([ranges.selection]);
-                }}
-                moveRangeOnFirstSelection={false}
-                ranges={range}
-                months={2}
-                direction="horizontal"
-                editableDateInputs
-            />
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "0 12px 12px" }}>
-                <button
-                onClick={() => {
-                    setRange([{ startDate: null, endDate: null, key: "selection" }]);
-                    setShowPicker(false);
-                }}
-                style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "white" }}
-                type="button"
-                >
-                Clear
-                </button>
-                <button
-                onClick={() => setShowPicker(false)}
-                style={{ padding: "6px 10px", borderRadius: 8, border: 0, background: "black", color: "white" }}
-                type="button"
-                >
-                Done
-                </button>
-            </div>
-            </div>
-        )}
-        </div>
+        <Card className="mb-4">
+            <Card.Body>
+                {/* Wrap by Card component */}
+                <Card.Title>Select Date Range</Card.Title>
+                    <div style={{ 
+                        position: "relative", 
+                        maxWidth: "500px",  
+                        margin: "0 auto"   
+                    }}>
+                        
+                        {/* Date Button */}
+                        <Row 
+                            onClick={() => setShowPicker(v => !v)}
+                            style={{ 
+                                cursor: "pointer", 
+                                border: "1px solid #dee2e6",
+                                borderRadius: "0.375rem",
+                                backgroundColor: "white"
+                            }}
+                        >
+                            <Col xs={6} style={{ padding: "0.5rem 1rem", borderRight: "1px solid #dee2e6" }}>
+                                <div style={{ fontSize: "0.8rem", color: "#6c757d" }}>From</div>
+                                <div style={{ fontWeight: "500" }}>
+                                    {start ? fmt(start) : "Add date"}
+                                </div>
+                            </Col>
+                            <Col xs={6} style={{ padding: "0.5rem 1rem" }}>
+                                <div style={{ fontSize: "0.8rem", color: "#6c757d" }}>To</div>
+                                <div style={{ fontWeight: "500" }}>
+                                    {end ? fmt(end) : "Add date"}
+                                </div>
+                            </Col>
+                        </Row>
+
+                        {/* Popup Calendar */}
+                        {showPicker && (
+                            <div
+                                ref={pickerRef}
+                                style={{
+                                    position: "absolute",
+                                    zIndex: 50,
+                                    marginTop: 4, 
+                                    background: "white",
+                                    border: "1px solid #e5e7eb",
+                                    borderRadius: 12,
+                                    boxShadow: "0 10px 25px rgba(0,0,0,0.12)",
+                                    width: 620, 
+                                    overflow: "hidden",
+                                    left: "50%",
+                                    transform: "translateX(-50%)",
+                                }}
+                            >
+                                {/* Date Range Component */}
+                                <DateRange
+                                    locale={enUS}
+                                    onChange={(ranges) => {
+                                        setRange([ranges.selection]);
+                                    }}
+                                    moveRangeOnFirstSelection={false}
+                                    ranges={range}
+                                    months={2}
+                                    direction="horizontal"
+                                    editableDateInputs
+                                />
+                                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "0 12px 12px" }}>
+                                    <button
+                                        onClick={() => {
+                                            setRange([{ startDate: null, endDate: null, key: "selection" }]);
+                                            setShowPicker(false);
+                                        }}
+                                        style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "white" }}
+                                        type="button"
+                                    >
+                                        Clear
+                                    </button>
+                                    <button
+                                        onClick={() => setShowPicker(false)}
+                                        style={{ padding: "6px 10px", borderRadius: 8, border: 0, background: "black", color: "white" }}
+                                        type="button"
+                                    >
+                                        Done
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+            </Card.Body>
+        </Card>
     );
 }
 
-export default GlobalDateRangePicker;
+export default DateRangePicker;
 
 
 /* ---------- Helper Functions ---------- */
-function DateButton({ start, end, onClick }) {
-    const label =
-        start && end ? `${fmt(start)} → ${fmt(end)}` : "Select dates";
-    return (
-        <button
-        onClick={onClick}
-        type="button"
-        style={{
-            padding: "8px 12px",
-            borderRadius: 10,
-            border: "1px solid #d1d5db",
-            background: "white",
-            cursor: "pointer",
-        }}
-        >
-        {label}
-        </button>
-    );
-}
 
 function fmt(d) {
     return new Date(d).toLocaleDateString(undefined, {

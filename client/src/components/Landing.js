@@ -13,8 +13,8 @@ import StormFeatureAnalysis from "./FeatureAnalysis";
 import GlobalDateRangePicker from "./DateRange";
 
 function Dashboard() {
-    const [activeView, setActiveView] = useState("map"); 
-    const [mapView, setMapView] = useState("map"); // Default => show Map view
+    const [activeView, setActiveView] = useState("Storm Map"); 
+    const [mapView, setMapView] = useState("Storm Map"); // Default => show Map view
     const [analysisTimeframe, setAnalysisTimeframe] = useState("Daily"); // default toggle
     const [readings, setReadings] = useState(null);
     const [range, setRange] = useState([
@@ -188,7 +188,7 @@ function Dashboard() {
                 <Navigation
                 activeView = {activeView}
                 setActiveView = {setActiveView}
-                buttonArr={["Storm Map","Feature Analysis"]}
+                buttonArr={["Storm Map", "Feature Analysis"]}
                 />
             </div>
             <div className="mt-4"> 
