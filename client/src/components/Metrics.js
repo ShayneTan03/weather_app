@@ -1,51 +1,51 @@
-import {Card, Col, Row} from 'react-bootstrap';
-import {getAverage} from '../utils/math';
+import { Card, Col, Row } from "react-bootstrap";
 
-function MetricCard({
-    title,
-    metric,
-    icon,
-    unit,
-}) {
-    console.log(metric);
-    const average = getAverage(metric);
-    console.log(average);
+function MetricCard({title, metric, icon, unit }) {
+    const validValues = Array.isArray(metric)
+        ? metric.filter((v) => v !== null && v !== undefined)
+        : metric != null
+        ? [metric]
+        : [];
+
+    const average =
+        validValues.length > 0
+            ? validValues.reduce((sum, v) => sum + v, 0) / validValues.length
+            : 0;
+
     return (
         <Col md={6} lg={3}>
             <Card className="h-100">
                 <Card.Body>
                     <div className="d-flex align-items-center mb-2 gap-2">
                         {icon}
-                        <span className="fw-medium">
-                            {title}
-                        </span>
+                        <span className="fw-medium">{title}</span>
                     </div>
                     <h4 className="fw-bold">
-                        {average >= 0 ? "+" : ""}
-                        {average.toFixed(1)}%
+                        {unit ? `${average.toFixed(1)} ${unit}` : average.toFixed(1)}
                     </h4>
-                    {/* <div className="text-muted small">
-                        {recent.toFixed(1)} vs {historical.toFixed(1)} {unit}
-                    </div> */}
                 </Card.Body>
             </Card>
         </Col>
-    )
-};
+    );
+}
 
-export function MetricRow({metrics}) {
-    return(
+export default MetricCard;
+
+
+export function MetricRow({ metrics }) {
+    console.log('row')
+    console.log(metrics);
+    return (
         <Row className="g-4 mb-4">
-            {metrics.map((m,i)=> (
+            {metrics.map((m, i) => (
                 <MetricCard
                     key={i}
                     title={m.title}
-                    change={m.change}
+                    metric={m.reading} // pass the actual array here
                     icon={m.icon}
                     unit={m.unit}
-                    recent={m.recent}
-                    historical={m.historical}
-            />))}
+                />
+            ))}
         </Row>
-    )
-};
+    );
+}

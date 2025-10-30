@@ -9,8 +9,8 @@ import {getMetrics} from "../api/fetchMetrics";
 import RadarMap, { DetectedStorms } from "./RadarMap";
 import Plot1 from "./Plot1";
 import StormFeatureAnalysis from "./FeatureAnalysis";
-import { calculateChange } from "../utils/math";
 import {fetchWeatherObservations, fetchWeatherStations} from "../api/fetchApi";
+import { useMemo } from "react";
 
 function Dashboard() {
     const [activeView, setActiveView] = useState("map");
@@ -162,6 +162,40 @@ function Dashboard() {
         hole: 0.5,
     };
 
+    const metrics = useMemo(() => {
+        if (!readings) return [];
+        const temperatureArr = readings.map(r => r.temperature);
+        const rainfallArr = readings.map(r => r.rainfall);
+        const humidityArr = readings.map(r => r.humidity);
+        const windSpeedArr = readings.map(r => r.wind_speed)
+        return [
+            {
+                title: "Temperature",
+                reading: temperatureArr,
+                icon: <ArrowDown className="text-danger" />,
+                unit: "°C",
+            },
+            {
+                title: "Rainfall",
+                reading: rainfallArr,
+                icon: <ArrowDown className="text-danger" />,
+                unit: "mm",
+            },
+            {
+                title: "Humidity",
+                reading: humidityArr,
+                icon: <ArrowDown className="text-danger" />,
+                unit: "mm",
+            },
+            {
+                title: "Wind Speed",
+                reading: windSpeedArr,
+                icon: <ArrowDown className="text-danger" />,
+                unit: "mm",
+            },
+        ];
+    }, [readings, dateRange]);
+
     console.log(readings);
 
     return (
@@ -187,63 +221,7 @@ function Dashboard() {
                 {activeView === "map" && readings && (
                     <>
                         <span>{readings.temperature}</span>
-                        <MetricRow
-                            metrics={[
-                                {
-                                   title: "Temperature",
-                                    change: calculateChange(
-                                        dateRange,
-                                        readings.map((r) => r.temperature)
-                                    ),
-                                    icon: <ArrowDown className="text-danger" />,
-                                    unit: "celcius",
-                                },
-                                {
-                                    title: "Rainfall",
-                                    change: calculateChange(
-                                        dateRange,
-                                        readings.map((r) => r.rainfall_mm)
-                                    ),
-                                    icon: <ArrowDown className="text-danger" />,
-                                    unit: "mm",
-                                },
-                                // {
-                                //     title: "Duration",
-                                //     change: calculateChange(
-                                //         dateRange,
-                                //         avgRecent.avgDuration,
-                                //         avgHistorical.avgDuration
-                                //     ),
-                                //     icon: <Clock className="text-primary" />,
-                                //     unit: "min avg",
-                                //     recent: avgRecent.avgDuration,
-                                //     historical: avgHistorical.avgDuration,
-                                // },
-                                // {
-                                //     title: "Size",
-                                //     change: calculateChange(
-                                //         dateRange,
-                                //         avgRecent.avgArea,
-                                //         avgHistorical.avgArea
-                                //     ),
-                                //     unit: "km squared avg",
-                                //     recent: avgRecent.avgArea,
-                                //     historical: avgHistorical.avgArea,
-                                // },
-                                // {
-                                //     title: "Distance",
-                                //     change: calculateChange(
-                                //         dateRange,
-                                //         avgRecent.avgDistance,
-                                //         avgHistorical.avgDistance
-                                //     ),
-                                //     icon: <ArrowUp className="text-warning" />,
-                                //     unit: "km avg",
-                                //     recent: avgRecent.avgDistance,
-                                //     historical: avgHistorical.avgDistance,
-                                // },
-                            ]}
-                        />
+                        <MetricRow metrics={metrics} />
                         <Row className="justify-content-center mb-4 mt-5">
                             <Col xs={12} md={8}>
                                 <RadarMap readings={readings} />
