@@ -5,7 +5,6 @@ backend/backfill_database/.env
 backend/backfill_database/weather_observation_backfill/.env
 backend/archive
 
-!dockerisation/backend/.env
 # Node modules
 /node_modules/
 
@@ -55,3 +54,11 @@ pnpm-debug.log*
 *.sublime-project
 
 **/venv/
+
+
+
+
+## unignore
+!dockerisation/
+!dockerisation/backend/
+!dockerisation/backend/.env
