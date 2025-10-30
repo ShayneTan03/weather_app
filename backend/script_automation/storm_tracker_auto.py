@@ -54,6 +54,21 @@ s3 = boto3.client("s3")
 #         port=port
 #     )
 #     return _db_conn
+def get_db_conn(secret_arn):
+    secret = get_secret(secret_arn)
+    host = secret['host']
+    dbname = secret['dbname']
+    user = secret['username']
+    password = secret['password']
+    port = int(secret.get('port', 5432))
+    return pg8000.connect(
+        host=host,
+        database=dbname,
+        user=user,
+        password=password,
+        port=port
+    )
+
 
 def query_to_df(conn, query, params=None):
     """
@@ -600,3 +615,12 @@ while current_date <= end_date:
         raise
 
     current_date += timedelta(days=1)
+    
+
+def lambda_handler(event, context):
+    return daily_d_minus_2()
+
+if __name__ == "__main__":
+    event = {} 
+    context = {}
+    print(lambda_handler(event, context))
