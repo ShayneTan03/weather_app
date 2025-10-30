@@ -33,8 +33,6 @@ export default MetricCard;
 
 
 export function MetricRow({ metrics }) {
-    console.log('row')
-    console.log(metrics);
     return (
         <Row className="g-4 mb-4">
             {metrics.map((m, i) => (

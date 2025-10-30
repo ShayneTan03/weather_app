@@ -15,7 +15,7 @@ import {fetchWeatherObservations, fetchWeatherStations} from "../api/fetchApi";
 import { useMemo } from "react";
 
 function Dashboard() {
-    const [activeView, setActiveView] = useState("Storm Map");
+    const [activeView, setActiveView] = useState("map");
     const [dateRange, setDateRange] = useState({
         start: new Date("2025-05-01T00:00:00Z"),
         end: new Date("2025-10-31T23:59:59Z")
@@ -211,7 +211,6 @@ function Dashboard() {
         ];
     }, [readings, dateRange]);
 
-    console.log(readings);
 
     return (
         <Container fluid className="py-4">
@@ -232,11 +231,11 @@ function Dashboard() {
                 <Navigation
                 activeView = {activeView}
                 setActiveView = {setActiveView}
-                buttonArr={["Storm Map", "Feature Analysis"]}
+                buttonArr={["map", "plot"]}
                 />
             </div>
             <div className="mt-4"> 
-                {activeView === 'Storm Map' && (
+                {activeView === 'map' && (
                     <>
                         <MetricRow metrics={metrics} />
                         <Row className="justify-content-center mb-4 mt-5">
@@ -256,7 +255,7 @@ function Dashboard() {
             </div>
 
             <div className="mt-4">
-            {activeView === 'Feature Analysis' && (
+            {activeView === 'plot' && (
                 <Col>
 
                 <Row className="g-4"> 
