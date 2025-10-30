@@ -1,7 +1,6 @@
 import pandas as pd 
 import numpy as np 
 import requests
-from datetime import datetime 
 import boto3
 import pg8000
 import json
@@ -14,39 +13,19 @@ from scipy.ndimage import label
 import io
 from skimage.color import rgb2lab
 from pg8000.dbapi import DatabaseError, ProgrammingError
+from dotenv import load_dotenv
+from datetime import datetime, timedelta, time
+import gc
 
+
+# --- S3 SETUP ---
+BUCKET_NAME = "dsa3101-storm-tracking-tw08"
+
+# create s3 client (this reads credentials from ~/.aws/credentials)
+s3 = boto3.client("s3")
 
 ####################################################################################################
 # helpers 
-def get_secret(secret_arn):
-    resp = secrets_client.get_secret_value(SecretId=secret_arn)
-    return json.loads(resp['SecretString'])
-
-def get_db_conn(secret_arn):
-    global _db_conn
-    if _db_conn:
-        try:
-            cur = _db_conn.cursor()
-            cur.execute("SELECT 1;")
-            cur.close()
-            return _db_conn
-        except Exception:
-            _db_conn = None
-    secret = get_secret(secret_arn)
-    host = secret['host']
-    dbname = secret['dbname']
-    user = secret['username']
-    password = secret['password']
-    port = int(secret.get('port', 5432))
-    _db_conn = pg8000.connect(
-        host=host,
-        database=dbname,
-        user=user,
-        password=password,
-        port=port
-    )
-    return _db_conn
-
 def query_to_df(conn, query, params=None):
     """
     Execute an SQL query and return results as a pandas DataFrame.
@@ -64,9 +43,12 @@ def query_to_df(conn, query, params=None):
     # Create DataFrame
     return pd.DataFrame(data, columns=columns)
 
-
-## dione help to create conn object
-
+def fetch_s3_bytes(s3_key):
+    # if key is None, just return None
+    if s3_key is None:
+        return None
+    # otherwise fetch the object bytes from s3
+    return s3.get_object(Bucket=BUCKET_NAME, Key=s3_key)['Body'].read()
 ####################################################################################################
 
 
@@ -121,7 +103,7 @@ def rgb_to_dbz(img, use_lab=True, snap_tol=8.0, alpha_min=10):
     z0 = legend_dbz[i0]
     z1 = legend_dbz[i1]
 
-    
+
     dbz_flat = np.zeros(d.shape[0], dtype=np.float32)
 
     # snap within tolerance to exact bin (handles anti-aliased purple)
@@ -155,7 +137,7 @@ def binary_storm_mask(dbz_grid,threshold_dbz) :
 def filter_by_area(storm_mask
                    ,dbz_grid
                    ,min_area_px):
-    
+
     # identifying connected components
     structure = np.ones((3, 3), dtype=int)
     labels_raw, n_raw = label(storm_mask.astype(np.uint8), structure=structure)
@@ -187,7 +169,7 @@ def filter_by_area(storm_mask
         ys, xs = np.where(comp) # return every pixel coordinate in the storm
         # print(ys)
         # print(xs)
-        
+
         # centroid (geometric center) — floats
         centroid_y = float(ys.mean()) if area_px > 0 else np.nan
         centroid_x = float(xs.mean()) if area_px > 0 else np.nan
@@ -219,12 +201,12 @@ def image_to_possible_storm(
 ) : 
     """
     This function combines the helper functions above to process a radar image. 
-    
+
     inputs: 
         1) data : bytedata of an image 
         2) dbz_threshold : integer, the decision marker on which pixels will constitute as a storm 
         3) min_area_threshold : integer, the decision marker on which storms will be filtered out
-    
+
     ouputs: 
         possible_storm_grid : array of the same dimensions as input image, contains the labeled possible storms with unique label for each 
         possible_storm_df : contains metadata about the storm namely
@@ -236,7 +218,7 @@ def image_to_possible_storm(
             - anchor_x : centroid_x rounded to nearest whole number for downstream
             - anchor_y : centroid_y rounded to nearest whole number for downstream
     """
-    
+
     image_buffer = BytesIO(data)
     img = Image.open(image_buffer)
 
@@ -287,7 +269,7 @@ def metric_threshold_calc(
 
         # if single station 
         if input_df.shape[0] == 1: 
-                if input_df['wind_speed_knots'].iloc[0] >= wind_speed_threshold:
+                if input_df['wind_speed'].iloc[0] >= wind_speed_threshold:
                         threshold_flags[0] = True
                 if input_df['rainfall_mm'].iloc[0] >= rainfall_threshold:
                         threshold_flags[1] = True
@@ -299,10 +281,10 @@ def metric_threshold_calc(
 
         # if multi station, average all 
         else:
-                cols_to_avg = ["wind_speed_knots", "rainfall_mm", "temperature_c", "humidity_pct"]
+                cols_to_avg = ["wind_speed", "rainfall_mm", "temperature_c", "humidity_pct"]
                 mean_df = input_df[cols_to_avg].mean()
 
-                if mean_df['wind_speed_knots'] >= wind_speed_threshold:
+                if mean_df['wind_speed'] >= wind_speed_threshold:
                         threshold_flags[0] = True
                 if mean_df['rainfall_mm'] >= rainfall_threshold:
                         threshold_flags[1] = True
@@ -354,7 +336,7 @@ def storm_object_checker(
             storm_id : iterable ID from the input dataframe
             possible_storm_grid : a numppy grid array of labeled components
             weather_data_df : contains the weather data nearby stations, detected either by 1) storm has a pixel where the weather station is 
-            
+
             thresholds: benchmarks to check if the storm is valid 
 
         outputs
@@ -363,7 +345,7 @@ def storm_object_checker(
         curr_storm = storm_pixel_coordinates(storm_id, possible_storm_grid)
 
         nearby_stations = pd.merge(weather_data_df,curr_storm,how='inner' , on = 'coord')
-        
+
         # storm does not encompass any stations
         if nearby_stations.shape[0] == 0:
                 # find centriod point first
@@ -380,29 +362,27 @@ def storm_object_checker(
                 nearby_stations = weather_data_df.head(1)
 
         res = metric_threshold_calc(nearby_stations,wind_speed_threshold,rainfall_threshold,temperature_threshold,humidty_threshold)
-        
+
         return res
 ######################################################################################
 
-
-
-
-
-
-
 ####################################################################################################
-### main task of this script
-## need to create conn object 
+### data pulling from db
+## pull station data 
+station_query = """
+SELECT * 
+FROM weather_station 
+"""
 
-## pipeline from 5 min radar image to list of possible storm, together with gridded component representation 
+station_data = query_to_df(conn,station_query)
+station_data
 
-## timeframe is 5 minute
-ts = # dione help me specify the format, im not sure which format u put in for the tables, i assume all the tables timestamp column is the same right
+
 
 ####################################################################################################
 # threshold settings
 dbz_threshold = 40# currently i set 40, but can change according to mapping too
-min_area_threshold = 0# currently i set to 150, makes the most sense so far
+min_area_threshold = 80# currently i set to 150, makes the most sense so far
 
 wind_speed_threshold = 5
 rainfall_threshold = 2
@@ -416,160 +396,186 @@ dist_tol = 40
 
 
 
-####################################################################################################
-### data pulling from db
-## pull station data 
-station_query = """
-SELECT * 
-FROM weather_station 
-WHERE 
-    timestamp = %s;
-"""
+##################################################################################################
 
-station_data = query_to_df(conn,station_query, (ts,))
+# === inputs ===
+start_date_str = "2025-08-21"
+end_date_str   = "2025-08-31"
+
+# === setup ===
+start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+end_date   = datetime.strptime(end_date_str, "%Y-%m-%d").date()
 
 
-## pull weather data 
-weather_query = """
-SELECT * 
-FROM weather_observation 
-WHERE 
-    timestamp = %s;
-"""
+current_date = start_date
 
-weather_data = query_to_df(conn,weather_query, (ts,))
+# === main loop ===
+while current_date <= end_date:
+    # generate all hours in the day
+    hours = [datetime.combine(current_date, time(h, 0)) for h in range(24)]
+    day_start_ts = datetime.combine(current_date, time(0, 0))       # 00:00:00
+    day_end_ts   = datetime.combine(current_date, time(23, 55))     # 23:55:00
 
-## pull image data
-image_query = """
-SELECT * 
-FROM radar_image 
-WHERE 
-    timestamp = %s;
-"""
-
-image_data = query_to_df(conn,image_query, (ts,))
-
-
-# pull image from s3, 
-image_byte_data = # dione help to fill in , i just need the corresponding data for this timestamp
-
-####################################################################################################
-
-
-
-####################################################################################################
-### run algos
-## weather data left join station data 
-weather_and_station_data = weather_data.merge(station_data, on = 'station_id',how = 'left')
-
-
-## storm_object_checker_algo
-possible_storm_grid, possible_storm_df = image_to_possible_storm(image_byte_data,dbz_threshold,min_area_threshold)
-
-final_storm_df = possible_storm_df.copy()
-
-final_storm_df['output'] = final_storm_df['grid_id'].apply(lambda x: storm_object_checker(x,possible_storm_grid,weather_and_station_data,wind_speed_threshold,rainfall_threshold,temperature_threshold,humidty_threshold,dist_tol))
-
-final_storm_df = final_storm_df[final_storm_df['output']]
-####################################################################################################
-
-
-####################################################################################################
-### upload to db 
-if final_storm_df.shape[0] == 0 : #empty df 
-    print(f'no possible storms detected for {ts}, skipping db upload')
-else:
-    # add time stamp first 
-    final_storm_df['timestamp'] = ts # from above 
-    new_order = ['timestamp','grid_id','centroid_x','centroid_y','anchor_x','anchor_y','peak_dbz','area_px','output']
-    final_storm_df = final_storm_df[new_order]
-    final_storm_df.drop(columns = ['output'],inplace = True)
-
-
-    # db schema : storm_observation
-    # timestamp : same as previous tables 
-    # grid_id : int 
-    # centroid_x : float (juz need decimal)
-    # centriod_y : float 
-    # anchor_x : float
-    # anchor_y : float 
-    # peak_dbz : float 
-    # area_px : float 
-
-
-    # NaN -> None so they become SQL NULL , there should be no null, but just safeguard
-    final_storm_df = final_storm_df.replace({np.nan: None})
-
-    # build rows for INSERT (order must match SQL)
-    rows = list(
-        final_storm_df[[
-            "timestamp",
-            "grid_id",
-            "centroid_x",
-            "centroid_y",
-            "anchor_x",
-            "anchor_y",
-            "peak_dbz",
-            "area_px",
-        ]].itertuples(index=False, name=None)
-    )
-
-    # SQLs
-    delete_sql_single = "DELETE FROM storm_observation WHERE timestamp = %s;"
-    insert_sql = """
-    INSERT INTO storm_observation (
-        timestamp, grid_id, centroid_x, centroid_y,
-        anchor_x, anchor_y, peak_dbz, area_px
-    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+    image_query = """
+    SELECT * 
+    FROM radar_image 
+    WHERE 
+        timestamp between %s and %s;
     """
 
-    try:
-        with conn.cursor() as cur:
-            # drop rows if already present
-            cur.execute(delete_sql_single, (ts,))
-            # insert new rows after drop , pseudo overwrite because of primary key problem
-            cur.executemany(insert_sql, rows)
+    print(f'pulling radar images for {day_start_ts} to {day_end_ts}')
+    image_data = query_to_df(conn,image_query, (day_start_ts,day_end_ts))
 
-        conn.commit()
-        print(f"uploaded storm data for {ts}")
-
-    except (DatabaseError, ProgrammingError):
-        conn.rollback()
-        raise
-
-
-
-
-
-    # remove unwanted components 
-    to_keep = final_storm_df["grid_id"].unique()
-    final_storm_grid = np.where(np.isin(possible_storm_grid, to_keep), possible_storm_grid, 0)
-
-    # grid data need to convert into byte data first 
-    buf = io.BytesIO()
-    np.save(buf, final_storm_grid)          
-    buf.seek(0)
-    binary_data = buf.read()               
-
-    sql = """
-    INSERT INTO radar_grid (timestamp, grid_data)
-    VALUES (%s, %s)
-    ON CONFLICT (timestamp)
-    DO UPDATE SET grid_data = EXCLUDED.grid_data;
+    weather_query = """
+    SELECT * 
+    FROM weather_observation 
+    WHERE 
+        timestamp between %s and %s;
     """
 
-    try:
-        with conn.cursor() as cur:
-            cur.execute(sql, (ts, binary_data))  
-        conn.commit()
-        print("Inserted or updated radar grid successfully.")
-    except (DatabaseError, ProgrammingError) as e:
-        conn.rollback()
-        print("Database error while inserting radar grid:")
-        raise
+    print(f'pulling weather data for {day_start_ts} to {day_end_ts}')
+    weather_data = query_to_df(conn,weather_query, (day_start_ts,day_end_ts))
 
-    # db schema : storm_grids
-    # timestamp :same as previous tables 
-    # grid_array : BYTEA (this one important)
+    # batch retrieve from s3 
+    image_data['s3_key'] = image_data['s3_key'].replace({None: pd.NA}).ffill().bfill() # if any s3_key is missing, ffill from previous row first , bfill is to catch corner case of first few leading rows is empty
 
-    ####################################################################################################
+    image_data['from_s3'] = image_data['s3_key'].apply(fetch_s3_bytes)
+
+    print(f'starting hourly batch process for {day_start_ts} to {day_end_ts}')
+    for i in range(len(hours)):
+        start_ts = hours[i]
+        # for the last hour, end at 23:55 instead of 00:00 next day
+        if i == len(hours) - 1:
+            end_ts = datetime.combine(current_date, time(23, 55))
+        else:
+            end_ts = hours[i] + timedelta(hours=1)
+
+        # batch processing 
+        print(f'processing for {start_ts} and {end_ts}')
+
+        # 5 min batch runs 
+
+        is_last_hour = (end_ts.hour == 0) or (start_ts.hour == 23)
+
+        if is_last_hour:
+            # 23:00 to 23:55 exactly
+            timeline = pd.date_range(start=start_ts, end=start_ts + timedelta(minutes=55), freq='5min')
+        else:
+            # standard 01:00 to 01:55 etc.
+            timeline = pd.date_range(start=start_ts, end=end_ts, freq='5min', inclusive='left')
+
+        hour_rows_storm_obs = []
+        hour_rows_radar_grid = []
+        hour_timestamps_touched = []
+
+        for ts in timeline:
+            # === WEATHER MERGE PER 5-MIN ===
+            weather_slice = weather_data[weather_data['timestamp'] == ts]
+            weather_and_station_data = weather_slice.merge(station_data, on='station_id', how='left')
+
+            # === IMAGE BYTES PER 5-MIN ===
+            img_slice = image_data[image_data['timestamp'] == ts]
+            if img_slice.empty:
+                print(f'No image data for {ts}, skipping.')
+                continue
+
+            image_byte_data = img_slice.iloc[0]['from_s3']
+
+            # === STORM DETECTION & VALIDATION ===
+            possible_storm_grid, possible_storm_df = image_to_possible_storm(
+                image_byte_data, dbz_threshold, min_area_threshold
+            )
+
+            final_storm_df = possible_storm_df.copy()
+            final_storm_df['output'] = final_storm_df['grid_id'].apply(
+                lambda x: storm_object_checker(
+                    x, possible_storm_grid, weather_and_station_data,
+                    wind_speed_threshold, rainfall_threshold,
+                    temperature_threshold, humidty_threshold, dist_tol
+                )
+            )
+            final_storm_df = final_storm_df[final_storm_df['output']]
+
+            # === SKIP EMPTY RESULTS ===
+            if final_storm_df.shape[0] == 0:
+                print(f'No possible storms detected for {ts}, skipping DB upload.')
+                continue
+
+            # === PREPARE STORM OBSERVATION ROWS ===
+            final_storm_df['timestamp'] = ts
+            new_order = [
+                'timestamp', 'grid_id', 'centroid_x', 'centroid_y',
+                'anchor_x', 'anchor_y', 'peak_dbz', 'area_px', 'output'
+            ]
+            final_storm_df = final_storm_df[new_order]
+            final_storm_df.drop(columns=['output'], inplace=True)
+            final_storm_df = final_storm_df.replace({np.nan: None})
+
+            # append all storm rows for the hour
+            rows_this_ts = list(final_storm_df[[
+                "timestamp", "grid_id", "centroid_x", "centroid_y",
+                "anchor_x", "anchor_y", "peak_dbz", "area_px"
+            ]].itertuples(index=False, name=None))
+            hour_rows_storm_obs.extend(rows_this_ts)  # multiple rows per 5-min
+
+            # === PREPARE GRID DATA ===
+            to_keep = final_storm_df["grid_id"].unique()
+            final_storm_grid = np.where(
+                np.isin(possible_storm_grid, to_keep),
+                possible_storm_grid, 0
+            )
+
+            buf = io.BytesIO()
+            np.save(buf, final_storm_grid)
+            buf.seek(0)
+            binary_data = buf.read()
+
+            hour_rows_radar_grid.append((ts, binary_data))  # one grid per 5-min
+            hour_timestamps_touched.append(ts)              # for batch DELETE
+
+        # === HOUR BATCH DB UPLOAD ===
+        delete_sql_single = "DELETE FROM storm_observation WHERE timestamp = %s;"
+        insert_storm_sql = """
+        INSERT INTO storm_observation (
+            timestamp, grid_id, centroid_x, centroid_y,
+            anchor_x, anchor_y, peak_dbz, area_px
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+        """
+        upsert_grid_sql = """
+        INSERT INTO storm_grid (timestamp, grid_data)
+        VALUES (%s, %s)
+        ON CONFLICT (timestamp) DO UPDATE
+        SET grid_data = EXCLUDED.grid_data;
+        """
+
+        try:
+            with conn.cursor() as cur:
+                if hour_timestamps_touched:
+                    cur.executemany(delete_sql_single, [(t,) for t in hour_timestamps_touched])
+                if hour_rows_storm_obs:
+                    cur.executemany(insert_storm_sql, hour_rows_storm_obs)
+                if hour_rows_radar_grid:
+                    cur.executemany(upsert_grid_sql, hour_rows_radar_grid)
+
+            conn.commit()
+            print(f" Uploaded hour batch: {start_ts:%F %H:%M} to {end_ts:%F %H:%M} " )
+
+        except (DatabaseError, ProgrammingError) as e:
+            conn.rollback()
+            print(" Database error while uploading hour batch:")
+            raise
+
+        del (
+            hour_rows_storm_obs,
+            hour_rows_radar_grid,
+            hour_timestamps_touched,
+            timeline,
+            weather_slice,
+            img_slice
+        )
+        gc.collect()
+
+    del image_data, weather_data
+    gc.collect()
+
+    current_date += timedelta(days=1)

@@ -37,7 +37,7 @@ def metric_threshold_calc(
 
         # if single station 
         if input_df.shape[0] == 1: 
-                if input_df['wind_speed_knots'].iloc[0] >= wind_speed_threshold:
+                if input_df['wind_speed'].iloc[0] >= wind_speed_threshold:
                         threshold_flags[0] = True
                 if input_df['rainfall_mm'].iloc[0] >= rainfall_threshold:
                         threshold_flags[1] = True
@@ -49,10 +49,10 @@ def metric_threshold_calc(
 
         # if multi station, average all 
         else:
-                cols_to_avg = ["wind_speed_knots", "rainfall_mm", "temperature_c", "humidity_pct"]
+                cols_to_avg = ["wind_speed", "rainfall_mm", "temperature_c", "humidity_pct"]
                 mean_df = input_df[cols_to_avg].mean()
 
-                if mean_df['wind_speed_knots'] >= wind_speed_threshold:
+                if mean_df['wind_speed'] >= wind_speed_threshold:
                         threshold_flags[0] = True
                 if mean_df['rainfall_mm'] >= rainfall_threshold:
                         threshold_flags[1] = True
@@ -79,9 +79,9 @@ def x_y_distance(
                 d = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
 
         return d
-########################################################################
+######################################################################################
 
-########################################################################
+######################################################################################
 # main function , call this with .apply to vectorise the function on dataframe for faster processing
 def storm_object_checker(
         storm_id
@@ -104,7 +104,7 @@ def storm_object_checker(
             storm_id : iterable ID from the input dataframe
             possible_storm_grid : a numppy grid array of labeled components
             weather_data_df : contains the weather data nearby stations, detected either by 1) storm has a pixel where the weather station is 
-            
+
             thresholds: benchmarks to check if the storm is valid 
 
         outputs
@@ -113,7 +113,7 @@ def storm_object_checker(
         curr_storm = storm_pixel_coordinates(storm_id, possible_storm_grid)
 
         nearby_stations = pd.merge(weather_data_df,curr_storm,how='inner' , on = 'coord')
-        
+
         # storm does not encompass any stations
         if nearby_stations.shape[0] == 0:
                 # find centriod point first
@@ -130,8 +130,6 @@ def storm_object_checker(
                 nearby_stations = weather_data_df.head(1)
 
         res = metric_threshold_calc(nearby_stations,wind_speed_threshold,rainfall_threshold,temperature_threshold,humidty_threshold)
-        
+
         return res
-########################################################################
-
-
+######################################################################################

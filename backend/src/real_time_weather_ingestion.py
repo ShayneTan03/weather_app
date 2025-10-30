@@ -2,85 +2,8 @@ import pandas as pd
 import numpy as np 
 import requests
 from datetime import datetime 
-import boto3
-import pg8000
 import json
 import os 
-
-# secrets_client = boto3.client('secretsmanager')
-# s3 = boto3.client('s3')
-
-# Global connection object to reuse between invocations (connection pooling benefit)
-_db_conn = None
-#################################################
-
-
-#################################################
-## query date handling
-current_datetime = datetime.today()
-minute = (current_datetime.minute // 5) * 5
-run_datetime= current_datetime.replace(minute = minute,second = 0, microsecond=0).isoformat()
-# print(run_datetime)
-#################################################
-
-
-#################################################
-## database function
-def get_secret(secret_arn):
-    resp = secrets_client.get_secret_value(SecretId=secret_arn)
-    return json.loads(resp['SecretString'])
-
-def get_db_conn(secret_arn):
-    global _db_conn
-    if _db_conn:
-        try:
-            cur = _db_conn.cursor()
-            cur.execute("SELECT 1;")
-            cur.close()
-            return _db_conn
-        except Exception:
-            _db_conn = None
-    secret = get_secret(secret_arn)
-    host = secret['host']
-    dbname = secret['dbname']
-    user = secret['username']
-    password = secret['password']
-    port = int(secret.get('port', 5432))
-    _db_conn = pg8000.connect(
-        host=host,
-        database=dbname,
-        user=user,
-        password=password,
-        port=port
-    )
-    return _db_conn
-
-def insert_metadata(conn,input_df):
-    data_payload = input_df.to_records(index = False).to_list()
-    with conn.cursor() as cur:
-        # i set the database name to be real_time_weather_data, change if needed
-        cur.executemany(
-        """
-        INSERT INTO real_time_weather_data (
-                station_id,
-                time_stamp,
-                wind_direction_degrees,
-                wind_speed_knots,
-                rainfall_mm,
-                temperature_c,
-                humidity_pct
-            )
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (station_id, time_stamp) DO UPDATE
-        SET wind_direction_degrees = EXCLUDED.wind_direction_degrees,
-            wind_speed_knots       = EXCLUDED.wind_speed_knots,
-            rainfall_mm            = EXCLUDED.rainfall_mm,
-            temperature_c          = EXCLUDED.temperature_c,
-            humidity_pct           = EXCLUDED.humidity_pct;
-        """, data_payload) 
-        conn.commit()
-
-#################################################
 
 #################################################
 ## api functions 
@@ -261,34 +184,3 @@ def main_scrapper(
     return combined_df
 
 #################################################
-
-#################################################
-## main working functions 
-def scrap_and_upload(
-    query_date_time
-    ,conn
-) :
-    result = main_scrapper(query_date_time)
-    try:
-        #################################################
-        ## dione to add database related stuff
-
-
-
-        #################################################
-
-
-        insert_metadata(result,conn)
-        print(f'success for {query_date_time}!')
-    except pg8000.dbapi.DatabaseError as e: # db not ok but url is success
-        return {"status": "error", "reason": "db connection failed", "error": str(e)}
-    
-
-def lambda_handler(event, context):
-    return scrap_and_upload(run_datetime)
-
-# if __name__ == "__main__":
-#     event = {} 
-#     context = {}
-#     print(lambda_handler(event, context))
-# #################################################

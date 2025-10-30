@@ -1,4 +1,4 @@
-from models import Base  # adjust import path
+from local.DSA3101_vsc.dsa3101_final_project.DSA3101_storm_4.backend.archive.models import Base  # adjust import path
 target_metadata = Base.metadata
 import os
 

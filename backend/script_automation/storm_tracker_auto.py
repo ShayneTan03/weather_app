@@ -1,7 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[ ]:
 
 
 import io
@@ -26,11 +22,6 @@ BUCKET_NAME = "dsa3101-storm-tracking-tw08"
 
 # create s3 client (this reads credentials from ~/.aws/credentials)
 s3 = boto3.client("s3")
-
-
-# # helpers
-
-# In[ ]:
 
 
 ####################################################################################################
@@ -497,42 +488,6 @@ def track_storms_for_day(df, grids, overlap_threshold=0.02, dist_threshold=20):
     return summary, full_tracks, parent_map
 
 
-# In[ ]:
-
-
-# Load environment variables from .env file
-load_dotenv()
-
-# Read credentials
-DB_HOST = os.getenv("DB_HOST")
-DB_PORT = int(os.getenv("DB_PORT", 5432))
-DB_NAME = os.getenv("DB_NAME")
-DB_USER = os.getenv("DB_USER")
-DB_PASS = os.getenv("DB_PASS")
-
-# Create connection
-conn = pg8000.connect(
-    host=DB_HOST,
-    port=DB_PORT,
-    database=DB_NAME,
-    user=DB_USER,
-    password=DB_PASS
-)
-
-print("✅ Connected successfully to PostgreSQL!")
-
-
-# # main backfil
-
-# In[ ]:
-
-
-# conn.rollback()
-
-
-# In[ ]:
-
-
 ##################################################################################################
 
 # === inputs ===
@@ -645,5 +600,3 @@ while current_date <= end_date:
         raise
 
     current_date += timedelta(days=1)
-
-

@@ -1,6 +1,3 @@
-##############################
-# Import Libraries
-##############################
 import io
 import pandas as pd
 import numpy as np
@@ -12,130 +9,79 @@ import boto3
 import pg8000
 from botocore.exceptions import ClientError
 from pg8000.dbapi import DatabaseError, ProgrammingError
+from dotenv import load_dotenv
+from datetime import datetime, timedelta, time
+import gc
+import os
+import hashlib
+
+# --- S3 SETUP ---
+BUCKET_NAME = "dsa3101-storm-tracking-tw08"
+
+# create s3 client (this reads credentials from ~/.aws/credentials)
+s3 = boto3.client("s3")
 
 
+####################################################################################################
+# helpers 
+# def get_secret(secret_arn):
+#     resp = secrets_client.get_secret_value(SecretId=secret_arn)
+#     return json.loads(resp['SecretString'])
 
-##############################
-# Configuration
-##############################
-secret_arn = "arn:aws:secretsmanager:ap-southeast-1:123456789012:secret:mydbcreds"
-frame_interval = 5 #5-minute radar frames
-batch_hours = 1 #1-hour batches (12 frames)
-overlap_threshold = 0.02
-dist_threshold = 20
-
-
-
-##############################
-# AWS Secrets & DB Helpers
-##############################
-secrets_client = boto3.client("secretsmanager")
-_db_conn = None
-
-def get_secret(secret_arn):
-    resp = secrets_client.get_secret_value(SecretId=secret_arn)
-    return json.loads(resp["SecretString"])
-
-def get_db_conn(secret_arn):
-    global _db_conn
-    if _db_conn:
-        try:
-            with _db_conn.cursor() as cur:
-                cur.execute("SELECT 1;")
-            return _db_conn
-        except Exception:
-            _db_conn = None
-    s = get_secret(secret_arn)
-    _db_conn = pg8000.connect(
-        host=s["host"],
-        database=s["dbname"],
-        user=s["username"],
-        password=s["password"],
-        port=int(s.get("port", 5432)),
-    )
-    return _db_conn
+# def get_db_conn(secret_arn):
+#     global _db_conn
+#     if _db_conn:
+#         try:
+#             cur = _db_conn.cursor()
+#             cur.execute("SELECT 1;")
+#             cur.close()
+#             return _db_conn
+#         except Exception:
+#             _db_conn = None
+#     secret = get_secret(secret_arn)
+#     host = secret['host']
+#     dbname = secret['dbname']
+#     user = secret['username']
+#     password = secret['password']
+#     port = int(secret.get('port', 5432))
+#     _db_conn = pg8000.connect(
+#         host=host,
+#         database=dbname,
+#         user=user,
+#         password=password,
+#         port=port
+#     )
+#     return _db_conn
 
 def query_to_df(conn, query, params=None):
+    """
+    execute an sql query and return results as a pandas dataframe.
+    returns an empty dataframe if no rows are found.
+    """
     with conn.cursor() as cur:
         cur.execute(query, params or ())
-        cols = [desc[0] for desc in cur.description]
-        rows = cur.fetchall()
-    return pd.DataFrame(rows, columns=cols)
 
+        # handle queries that return no result set
+        if cur.description is None:
+            return pd.DataFrame()
 
+        # get column names
+        columns = [desc[0] for desc in cur.description]
 
-##############################
-# Batch Processing
-##############################
-def run_hourly_batches(secret_arn, start_time, end_time, frame_interval=5):
-    conn = get_db_conn(secret_arn)
-    all_frames = pd.date_range(start_time, end_time, freq=f"{frame_interval}min")
-
-    for i in range(0, len(all_frames), 12):  # 12 frames ≈ 1 hour batch
-        batch = all_frames[i : i + 12]
-
-        #Pull storm_observation (metadata table)
-        placeholders = ", ".join(["%s"] * len(batch))
-        sql_obs = f"""
-            SELECT * FROM storm_observation
-            WHERE timestamp IN ({placeholders})
-            ORDER BY timestamp;
-        """
-        df = query_to_df(conn, sql_obs, tuple(batch))
-        if df.empty:
-            continue
-
-        #Pull storm_grid (label maps)
-        sql_grid = f"""
-            SELECT timestamp, grid_data
-            FROM storm_grid
-            WHERE timestamp IN ({placeholders});
-        """
-        grid_df = query_to_df(conn, sql_grid, tuple(batch))
-        if grid_df.empty:
-            continue
-
-        #Decode grid data
-        grids = {}
-        for _, row in grid_df.iterrows():
-            try:
-                grids[pd.Timestamp(row["timestamp"])] = pickle.loads(row["grid_data"])
-            except Exception as e:
-        if not grids:
-            continue
-
-        #Run storm tracking
-        summary_df, all_tracks_df, parent_map = track_storms_for_day(
-            df, grids, overlap_threshold=0.02, dist_threshold=20
-        )
-
-        #Filter out any 0-duration storms
-        summary_df = summary_df.loc[summary_df["duration"] > 0].copy()
-        if summary_df.empty:
-            continue
-
-        #Upload summary_df back to DB
-        summary_df = summary_df.replace({np.nan: None})
-
-        insert_sql = """
-            INSERT INTO storm_summary (
-                storm_id, parent_id, start_time, end_time, duration,
-                avg_centroid_x, avg_centroid_y, avg_dbz, avg_area,
-                num_children, classification,
-                grid_id_list, anchor_x_list, anchor_y_list, area_list
-            )
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);
-        """
-
+        # safe fetch for empty results
         try:
-            with conn.cursor() as cur:
-                for row in summary_df.itertuples(index=False, name=None):
-                    cur.execute(insert_sql, row)
-            conn.commit()
-        except (DatabaseError, ProgrammingError) as e:
-            conn.rollback()
+            rows = cur.fetchall()
+        except Exception:
+            rows = []
+
+    # handle no rows fetched
+    if not rows:
+        return pd.DataFrame(columns=columns)
+
+    return pd.DataFrame(rows, columns=columns)
 
 
+####################################################################################################
 
 ##############################
 # Matched labeled storms
@@ -212,12 +158,12 @@ def classify_relationships(matches, df_t1, df_t2):
     #Splits (1 → many)
     for id1, group in matches.groupby("t1_id"):
         if len(group) > 1:
-            rels.append({"type": "split", "t1_id": id1, "t2_ids": group["t2_id"].tolist()})
+            rels.append({"type": "split", "t1_id": id1, "t2_id": group["t2_id"].tolist()})
 
     #Merges (many → 1)
     for id2, group in matches.groupby("t2_id"):
         if len(group) > 1:
-            rels.append({"type": "merge", "t2_id": id2, "t1_ids": group["t1_id"].tolist()})
+            rels.append({"type": "merge", "t2_id": id2, "t1_id": group["t1_id"].tolist()})
 
     #New storms
     new_storms = list(t2_ids - matched_t2)
@@ -253,7 +199,7 @@ def update_tracks(matches, rels, id_map, next_track_id, parent_map):
     for _, row in rels.iterrows():
         if row["type"] == "split":
             parent_tid = id_map.get(row["t1_id"])
-            for child_gid in row["t2_ids"]:
+            for child_gid in row["t2_id"]:
                 child_tid = next(next_track_id)
                 id_map[child_gid] = child_tid
                 parent_map[child_tid] = parent_tid
@@ -262,7 +208,7 @@ def update_tracks(matches, rels, id_map, next_track_id, parent_map):
     if row["type"] == "merge":
         merged_tid = next(next_track_id)
         id_map[row["t2_id"]] = merged_tid
-        for p in row["t1_ids"]:
+        for p in row["t1_id"]:
             if p in id_map:
                 parent_map[merged_tid] = id_map[p]
 
@@ -293,6 +239,7 @@ def summarize_tracks(df, parent_map):
     )
 
     rows = []
+
     for tid, g in df.groupby("track_id", sort=False):
         g = g.sort_values("timestamp")
         start = g["timestamp"].iloc[0]
@@ -314,6 +261,9 @@ def summarize_tracks(df, parent_map):
 
     summary = pd.DataFrame(rows)
 
+
+
+
     #Lineage Counts
     child_counts = pd.Series(list(parent_map.values())).value_counts()
     summary["num_children"] = summary["storm_id"].map(child_counts).fillna(0).astype(int)
@@ -330,6 +280,14 @@ def summarize_tracks(df, parent_map):
 
     return summary.sort_values(["start_time", "storm_id"]).reset_index(drop=True)
 
+def bytes_to_array(b):
+    if b is None:
+        return None
+    return np.load(io.BytesIO(b), allow_pickle=False)
+
+def simple_hash(values):
+    s = ",".join(map(str, values))
+    return hashlib.sha256(s.encode()).hexdigest()
 
 
 ##############################
@@ -344,10 +302,11 @@ def _root_parent(track_id, parent_map):
 
 
 def track_storms_for_day(df, grids, overlap_threshold=0.02, dist_threshold=20):
+
     #Prepare Frames
     frames = {ts: g.copy() for ts, g in df.groupby("timestamp", sort=True)}
     timestamps = sorted(frames.keys())
-    assert set(timestamps) <= set(grids.keys()), "grids must contain every timestamp in df"
+
 
     next_id = count(1)
     parent_map = {} 
@@ -357,10 +316,13 @@ def track_storms_for_day(df, grids, overlap_threshold=0.02, dist_threshold=20):
     #First Frame
     t0 = timestamps[0]
     df0 = frames[t0]
+
+
     for gid in df0["grid_id"]:
         tid = next(next_id)
         id_map[int(gid)] = tid
         parent_map[tid] = tid
+
 
     #Attach First Frame
     df0 = df0.copy()
@@ -368,10 +330,14 @@ def track_storms_for_day(df, grids, overlap_threshold=0.02, dist_threshold=20):
     df0["parent_track_id"] = df0["track_id"].map(lambda z: parent_map.get(z, z))
     track_records.append(df0)
 
+
     #Subsequent Frames
-    prev_ts, prev_df, prev_labels = t0, df0, grids[t0]
+    prev_ts, prev_df, prev_labels = t0, df0, grids[t0] 
+
+
 
     for ts in timestamps[1:]:
+        # print('path3')
         cur_df = frames[ts].copy()
         cur_labels = grids[ts]
 
@@ -383,6 +349,7 @@ def track_storms_for_day(df, grids, overlap_threshold=0.02, dist_threshold=20):
 
         # decide relations
         rels = classify_relationships(matches, prev_df, cur_df)
+
 
         # Build next_id_map ONLY from this pair of frames (strict)
         next_id_map = {}
@@ -397,7 +364,7 @@ def track_storms_for_day(df, grids, overlap_threshold=0.02, dist_threshold=20):
         # 2) splits (1->many): keep max-overlap child; others new with parent = root
         for _, s in rels[rels["type"] == "split"].iterrows():
             t1 = int(s["t1_id"])
-            children = list(map(int, s["t2_ids"]))
+            children = list(map(int, s["t2_id"]))
             if t1 not in id_map:
                 continue
             parent_tid = id_map[t1]
@@ -420,7 +387,7 @@ def track_storms_for_day(df, grids, overlap_threshold=0.02, dist_threshold=20):
         # 3) merges (many->1): winner by max overlap keeps id; others end
         for _, m in rels[rels["type"] == "merge"].iterrows():
             t2 = int(m["t2_id"])
-            parents = list(map(int, m["t1_ids"]))
+            parents = list(map(int, m["t1_id"]))
             # choose parent with max overlap
             m_sub = matches[matches["t2_id"] == t2].set_index("t1_id")
             winner = max(parents, key=lambda p: m_sub.loc[p, "overlap"] if p in m_sub.index else -1)
@@ -440,10 +407,15 @@ def track_storms_for_day(df, grids, overlap_threshold=0.02, dist_threshold=20):
         #Replace current mapping with newly decided mapping
         id_map = next_id_map
 
+
+
         #Attach current frame rows with chosen ids
         cur_df["track_id"] = cur_df["grid_id"].map(id_map)
         cur_df["parent_track_id"] = cur_df["track_id"].map(lambda z: parent_map.get(z, z))
         track_records.append(cur_df)
+
+
+
 
         prev_ts, prev_df, prev_labels = ts, cur_df, cur_labels
 
@@ -465,17 +437,21 @@ def track_storms_for_day(df, grids, overlap_threshold=0.02, dist_threshold=20):
         full_tracks.sort_values(["track_id", "timestamp"])
         .groupby("track_id", sort=False)
         .apply(lambda g: pd.Series({
-            "grid_id_list":  ",".join(map(str, g["grid_id"].tolist())),
-            "anchor_x_list": ",".join(f"{v:.2f}" for v in g["anchor_x"].tolist()),
-            "anchor_y_list": ",".join(f"{v:.2f}" for v in g["anchor_y"].tolist()),
-            "area_list":     ",".join(f"{v:.3f}" for v in g["area_px"].tolist()),
+            "obs_id_list":  g["obs_id"].astype(int).tolist(),
+            "anchor_x_list": g["anchor_x"].round(2).tolist(),
+            "anchor_y_list": g["anchor_y"].round(2).tolist(),
+            "area_list":     g["area_px"].round(3).tolist(),
             "n_list_frames": len(g)  # quick check
         }))
         .reset_index()
         .rename(columns={"track_id": "storm_id"})
     )
 
+    per_storm_lists["obs_id_hash"] = per_storm_lists["obs_id_list"].apply(simple_hash)
+
     summary = summary.merge(per_storm_lists, on="storm_id", how="left")
+
+    summary = summary.rename(columns={"storm_id": "track_id"})
 
     #Rounding of values
     summary = summary.round({
@@ -484,10 +460,10 @@ def track_storms_for_day(df, grids, overlap_threshold=0.02, dist_threshold=20):
 
     summary = summary[
         [
-            "storm_id", "parent_id", "start_time", "end_time", "duration",
+            "track_id", "parent_id", "start_time", "end_time", "duration",
             "avg_centroid_x", "avg_centroid_y", "avg_dbz", "avg_area",
             "n_frames", "num_children", "classification",
-            "grid_id_list", "anchor_x_list", "anchor_y_list", "area_list"
+            "obs_id_list", "anchor_x_list", "anchor_y_list", "area_list",'obs_id_hash'
         ]
     ]
     return summary, full_tracks, parent_map
