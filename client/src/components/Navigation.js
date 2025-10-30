@@ -14,6 +14,7 @@ function Navigation({activeView, setActiveView, buttonArr}) {
                 return(
                     <Button
                         key={name}
+                        className="w-50"
                         variant = {activeView === name ? 'primary' : 'outline-primary'}
                         onClick = {() => setActiveView(name)}
                         type='button'>

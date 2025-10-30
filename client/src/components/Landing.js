@@ -8,17 +8,22 @@ import Navigation from "./Navigation";
 import {getMetrics} from "../api/fetchMetrics";
 import RadarMap, { DetectedStorms } from "./RadarMap";
 import Plot1 from "./Plot1";
+import Plot2 from "./Plot2";
 import StormFeatureAnalysis from "./FeatureAnalysis";
+import GlobalDateRangePicker from "./DateRange";
 import { calculateChange } from "../utils/math";
 import {fetchWeatherObservations, fetchWeatherStations} from "../api/fetchApi";
 
 function Dashboard() {
-    const [activeView, setActiveView] = useState("map");
+    const [activeView, setActiveView] = useState("Storm Map");
     const [dateRange, setDateRange] = useState({
         start: new Date("2025-05-01T00:00:00Z"),
         end: new Date("2025-10-31T23:59:59Z")
     });
     const [readings, setReadings] = useState(null);
+    const [range, setRange] = useState([
+        { startDate : new Date(), endDate : new Date(), key : "selection"}
+    ]); // default time range
 
     // any asynchronous logic should be handled within useEffect with a nested fn
     // this will load the necessary data before loading the components of the web page
@@ -88,7 +93,7 @@ function Dashboard() {
             avgDistance: 13.5,
         },
     ];
-
+    //data for plot1
     const Data1 = [
         {
             stormId: "STORM_A",
@@ -111,6 +116,16 @@ function Dashboard() {
                 { timestamp: "2025-10-20T06:00Z", rainfall: 3.8, size: 90 },
             ],
         },
+    ];
+    // data for plot2 (each storm is a single averaged point)
+    const Data2 = [
+        { stormId: "STORM_C", rainfall: 4.3, windspeed: 20.4, size: 102, intensity: 5.6 },
+        { stormId: "STORM_D", rainfall: 5.3, windspeed: 28.0, size: 150, intensity: 7.8 },
+        { stormId: "STORM_E", rainfall: 6.1, windspeed: 33.7, size: 178, intensity: 8.6 },
+        { stormId: "STORM_F", rainfall: 3.9, windspeed: 18.5, size: 88,  intensity: 4.7 },
+        { stormId: "STORM_G", rainfall: 2.7, windspeed: 12.9, size: 60,  intensity: 3.2 },
+        { stormId: "STORM_H", rainfall: 7.4, windspeed: 41.2, size: 210, intensity: 9.3 },
+        { stormId: "STORM_I", rainfall: 4.9, windspeed: 24.6, size: 125, intensity: 6.1 },
     ];
 
     const recent2023 = trendData.filter((d) => d.period.startsWith("2023"));
@@ -162,6 +177,9 @@ function Dashboard() {
         hole: 0.5,
     };
 
+    const start = range[0].startDate;
+    const end = range[0].endDate;    
+
     console.log(readings);
 
     return (
@@ -176,15 +194,18 @@ function Dashboard() {
                 }
             />
 
-            <div className="my-4">
+            {/* Show Date Range Picker above navigation bar*/}
+            <GlobalDateRangePicker range={range} setRange={setRange}/> 
+
+            <div className = 'my-4'>
                 <Navigation
-                    activeView={activeView}
-                    setActiveView={setActiveView}
-                    buttonArr={["map", "plot"]}
+                activeView = {activeView}
+                setActiveView = {setActiveView}
+                buttonArr={["Storm Map", "Feature Analysis"]}
                 />
             </div>
-            <div className="mt-4">
-                {activeView === "map" && readings && (
+            <div className="mt-4"> 
+                {activeView === 'Storm Map' && (
                     <>
                         <span>{readings.temperature}</span>
                         <MetricRow
@@ -256,10 +277,17 @@ function Dashboard() {
                         </Row>
                     </>
                 )}
-                {activeView === "plot" && readings && (
-                    <Row className="g-4 mb-4">
+
+                    
+            </div>
+
+            <div className="mt-4">
+            {activeView === 'Feature Analysis' && (
+                <Col>
+
+                <Row className="g-4"> 
                         {/* Display Feature Analysis */}
-                        <StormFeatureAnalysis Data1={Data1} />
+                        {<StormFeatureAnalysis Data1={Data1} />}
                         {/* Wrap the Plot1 with Col and Card for cleaner layout */}
                         <Col xs={12}>
                             <Card>
@@ -269,32 +297,17 @@ function Dashboard() {
                                 </Card.Body>
                             </Card>
                         </Col>
-                    </Row>
-                )}
-            </div>
+                </Row>
 
-            {activeView === "plot" && readings && (
                 <Row className="g-4 mb-4">
-                    <Col lg={6}>
+                    <Col lg={6}> 
                         <Card>
                             <Card.Body>
-                                <Card.Title>Storm Frequency Trend</Card.Title>
-                                <Plot
-                                    data={[frequencyTrace]}
-                                    layout={{
-                                        autosize: true,
-                                        margin: { t: 20, b: 40, l: 40, r: 20 },
-                                        xaxis: { title: "Period" },
-                                        yaxis: { title: "Storm Count" },
-                                        paper_bgcolor: "transparent",
-                                        plot_bgcolor: "transparent",
-                                    }}
-                                    config={{
-                                        responsive: true,
-                                        displayModeBar: false,
-                                    }}
-                                    style={{ width: "100%", height: "300px" }}
-                                />
+                                <Card.Title>
+                                    Storm Features Against Rainfall and Wind Speed
+                                </Card.Title>
+                                {/* Display Plot2 */}
+                                <Plot2 Data2 = {Data2} />
                             </Card.Body>
                         </Card>
                     </Col>
@@ -324,7 +337,9 @@ function Dashboard() {
                         </Card>
                     </Col>
                 </Row>
-            )}
+                </Col>
+                )}
+            </div>
         </Container>
     );
 }
