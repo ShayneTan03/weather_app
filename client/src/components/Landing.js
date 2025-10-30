@@ -43,7 +43,7 @@ function Dashboard() {
                         rainfall: stationMetrics.rainfall_mm ?? null,
                         wind_speed: stationMetrics.wind_speed_knots ?? null,
                         wind_direction: stationMetrics.wind_direction_degrees ?? null,
-                        temperature: stationMetrics.temperature ?? null,
+                        temperature: stationMetrics.temperature_c ?? null,
                     };
                 });
 
@@ -238,7 +238,6 @@ function Dashboard() {
             <div className="mt-4"> 
                 {activeView === 'Storm Map' && (
                     <>
-                        <span>{readings.temperature}</span>
                         <MetricRow metrics={metrics} />
                         <Row className="justify-content-center mb-4 mt-5">
                             <Col xs={12} md={8}>

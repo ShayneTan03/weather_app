@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Row, Col, Card } from "react-bootstrap"; 
 import { DateRange } from "react-date-range";
 import { enUS } from "date-fns/locale";
