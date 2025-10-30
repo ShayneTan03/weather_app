@@ -8,6 +8,7 @@ import Navigation from "./Navigation";
 import fetchHumidity from "../api/fetchHumidity";
 import RadarMap, {DetectedStorms} from "./RadarMap";
 import Plot1 from "./Plot1";
+import Plot2 from "./Plot2";
 import StormFeatureAnalysis from "./FeatureAnalysis";
 
 function Dashboard() {
@@ -98,6 +99,16 @@ function Dashboard() {
         { timestamp: "2025-10-20T06:00Z", rainfall: 3.8, size: 90 },
         ],
     },
+    ];
+    // data for plot2 (each storm is a single averaged point)
+    const Data2 = [
+        { stormId: "STORM_C", rainfall: 4.3, windspeed: 20.4, size: 102, intensity: 5.6 },
+        { stormId: "STORM_D", rainfall: 5.3, windspeed: 28.0, size: 150, intensity: 7.8 },
+        { stormId: "STORM_E", rainfall: 6.1, windspeed: 33.7, size: 178, intensity: 8.6 },
+        { stormId: "STORM_F", rainfall: 3.9, windspeed: 18.5, size: 88,  intensity: 4.7 },
+        { stormId: "STORM_G", rainfall: 2.7, windspeed: 12.9, size: 60,  intensity: 3.2 },
+        { stormId: "STORM_H", rainfall: 7.4, windspeed: 41.2, size: 210, intensity: 9.3 },
+        { stormId: "STORM_I", rainfall: 4.9, windspeed: 24.6, size: 125, intensity: 6.1 },
     ];
 
     const recent2023 = trendData.filter((d) => d.period.startsWith("2023"));
@@ -284,27 +295,14 @@ function Dashboard() {
                 </Row>
 
                 <Row className="g-4 mb-4">
-                    <Col lg={6}>
+                    <Col lg={6}> 
                         <Card>
                             <Card.Body>
-                                <Card.Title>Storm Features Against Rain Frequency</Card.Title>
-                                // FIXME: write code for plot2 and add plot2 here
-                                <Plot
-                                    data={[frequencyTrace]}
-                                    layout={{
-                                        autosize: true,
-                                        margin: { t: 20, b: 40, l: 40, r: 20 },
-                                        xaxis: { title: "Period" },
-                                        yaxis: { title: "Storm Count" },
-                                        paper_bgcolor: "transparent",
-                                        plot_bgcolor: "transparent",
-                                    }}
-                                    config={{
-                                        responsive: true,
-                                        displayModeBar: false,
-                                    }}
-                                    style={{ width: "100%", height: "300px" }}
-                                />
+                                <Card.Title>
+                                    Storm Features Against Rainfall and Wind Speed
+                                </Card.Title>
+                                {/* Display Plot2 */}
+                                <Plot2 Data2 = {Data2} />
                             </Card.Body>
                         </Card>
                     </Col>
