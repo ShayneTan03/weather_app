@@ -1,0 +1,21 @@
+services:
+  backend:
+    build: ./dockerisation/backend
+    ports:
+      - "5001:5000"
+    env_file:
+      - ./dockerisation/backend/.env
+
+  client:
+    build: ./client
+    container_name: react-app
+    ports:
+      - "3000:3000"
+    command: npm start
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true   
+      - WATCHPACK_POLLING=true
