@@ -5,3 +5,10 @@ services:
       - "5001:5000"  # Map port 5001 on the host to port 5000 in the container for host access , frontend app to communicate by 5000 
   frontend:
     build: ./frontend
+    container_name: react-app
+    ports:
+      - "3000:3000"
+    command: npm start
+    volumes:
+      - ./client:/app
+      - /app/node_modules

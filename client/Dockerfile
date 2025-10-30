@@ -4,6 +4,8 @@ FROM node:20-alpine
 # Set working directory inside the container
 WORKDIR /app
 
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
 # Copy dependency files first
 COPY package*.json ./
 
@@ -14,7 +16,7 @@ RUN npm install
 COPY . .
 
 # Expose the React dev server port
-EXPOSE 5173
+EXPOSE 3000
 
 # Default command
 CMD ["npm", "run", "dev", "--", "--host"]

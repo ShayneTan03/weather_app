@@ -16,10 +16,16 @@ import { useMemo } from "react";
 
 function Dashboard() {
     const [activeView, setActiveView] = useState("map");
+
+    /**
+     * set date range here to determine what filter to use on the readingss
+     */
     const [dateRange, setDateRange] = useState({
         start: new Date("2025-05-01T00:00:00Z"),
         end: new Date("2025-10-31T23:59:59Z")
     });
+
+
     const [readings, setReadings] = useState(null);
     const [range, setRange] = useState([
         { startDate : new Date(), endDate : new Date(), key : "selection"}
@@ -33,6 +39,10 @@ function Dashboard() {
                 const observations = await fetchWeatherObservations();
                 const stations = await fetchWeatherStations();
                 const metrics = getMetrics(observations, dateRange);
+
+                /**
+                 * fetch all metrics here
+                 */
 
                 const readingMap = stations.map((station) => {
                     const stationMetrics = metrics[station.station_id] || {};
