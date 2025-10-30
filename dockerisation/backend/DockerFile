@@ -3,11 +3,13 @@ FROM python:3.11-slim
 WORKDIR /app
 
 COPY backend_requirements.txt .
-COPY app.py .
+COPY api.py .
+copy .env ./
 
-RUN pip install --no-cache-dir -r backend_requirement.txt
+ENV PYTHONUNBUFFERED=1
+
+RUN pip install --no-cache-dir -r backend_requirements.txt
 
 EXPOSE 5000
 
-CMD ["flask", "-A", "app", "run", "-h", "0.0.0.0", "-p", "5000"]
-
+CMD ["flask", "-A", "api", "run", "-h", "0.0.0.0", "-p", "5000"]
