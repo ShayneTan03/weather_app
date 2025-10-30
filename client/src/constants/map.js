@@ -19,7 +19,7 @@ export const getMapPointers = (displays) => [
         unit: "%",
     },
     {
-        key: "windSpeed",
+        key: "wind_speed",
         display: displays.windSpeed,
         color: "green",
         scale: 15,
@@ -27,7 +27,7 @@ export const getMapPointers = (displays) => [
         unit: "%",
     },
     {
-        key: "windDirection",
+        key: "wind_direction",
         display: displays.windDirection,
         color: "orange",
         scale: 15,
@@ -41,5 +41,13 @@ export const getMapPointers = (displays) => [
         scale: 15,
         label: "Storm Intensity",
         unit: "dBZ",
+    },
+    {
+        key: "temperature",
+        display: displays.temperature,
+        color: "purple",
+        scale: 15,
+        label: "Temperature",
+        unit: "celcius",
     },
 ];

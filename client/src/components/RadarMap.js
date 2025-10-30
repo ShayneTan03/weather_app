@@ -8,11 +8,10 @@ import { isStormCandidate } from "../utils/math";
 function SingaporeMap({ readings, selectedOptions }) {
     const MAP_POINTERS = getMapPointers(selectedOptions);
 
-    if (!readings) {
+    if (!readings || readings.length === 0) {
         return <div>Loading radar data...</div>;
     }
 
-    console.log(MAP_POINTERS);
     return (
         <div id="map-container">
             <MapContainer
@@ -21,22 +20,23 @@ function SingaporeMap({ readings, selectedOptions }) {
                 scrollWheelZoom={true}
                 style={{ height: "50vh", width: "100%" }}
             >
+                {/* Base map tiles */}
                 <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                 />
 
+                {/* Station markers */}
                 {readings.map((r) => (
-                    <Marker key={r.id} position={[r.latitude, r.longitude]}>
+                    <Marker key={r.station_id} position={[r.lat, r.lon]}>
                         <Popup>
-                            {" "}
-                            {r.name}
+                            <strong>{r.name}</strong>
                             {MAP_POINTERS.map(
                                 (v) =>
                                     v.display && (
-                                        <div key={v.key}>
+                                        <div key={`${r.station_id}-${v.key}`}>
                                             {v.label}:{" "}
-                                            {r[v.key] === "NA" ? 0 : r[v.key]}
+                                            {r[v.key] === "NA" ? 0 : r[v.key]}{" "}
                                             {v.unit}
                                         </div>
                                     )
@@ -45,19 +45,24 @@ function SingaporeMap({ readings, selectedOptions }) {
                     </Marker>
                 ))}
 
+                {/* Humidity or metric circles */}
                 {MAP_POINTERS.map((v) =>
                     v.display
-                        ? readings.map((r) => (
-                              <Circle
-                                  key={`${v.key}-${r.id}`}
-                                  center={[r.latitude, r.longitude]}
-                                  radius={
-                                      r[v.key] === "NA" ? 0 : r[v.key] * v.scale
-                                  }
-                                  fillColor={v.color}
-                                  fillOpacity="0.3"
-                              ></Circle>
-                          ))
+                        ? readings.map((r) => {
+                              const value =
+                                  r[v.key] === "NA" ? 0 : Number(r[v.key]);
+
+                              return (
+                                  <Circle
+                                      key={`${v.key}-${r.station_id}`}
+                                      center={[r.lat, r.lon]}
+                                      radius={value * v.scale}
+                                      fillColor={v.color}
+                                      fillOpacity={0.3}
+                                      stroke={false}
+                                  />
+                              );
+                          })
                         : null
                 )}
             </MapContainer>
@@ -83,8 +88,8 @@ function createStormObj(reading, index) {
         intensity,
         area,
         center: {
-            x: reading.latitude.toFixed(3),
-            y: reading.longitude.toFixed(3),
+            x: reading.lat,
+            y: reading.lon,
         },
     };
 }
@@ -134,9 +139,9 @@ export function DetectedStorms({ readings }) {
                             </div>
                             <div className="text-muted small">
                                 <div>Area: {storm.area} km²</div>
-                                <div>Shape: {storm.shape}</div>
                                 <div>
-                                    Center: ({storm.center.x}, {storm.center.y})
+                                    {" "}
+                                    Center: ({storm.center.x}, {storm.center.y}){" "}
                                 </div>
                             </div>
                         </div>
@@ -154,6 +159,7 @@ function RadarMap({ readings }) {
         windSpeed: false,
         windDirection: false,
         stormIntensity: false,
+        temperature: false
     });
 
     const [weatherStations, setWeatherStations] = useState([]); // arr of coords
@@ -217,14 +223,6 @@ function RadarMap({ readings }) {
     const handleOption = (e) => {
         const { name, checked } = e.target;
         setSelectedOptions((prev) => ({ ...prev, [name]: checked }));
-    };
-
-    const displayOptions = {
-        humidity: selectedOptions.humidity,
-        rainfall: selectedOptions.rainfall,
-        windSpeed: selectedOptions.windSpeed,
-        windDirection: selectedOptions.windDirection,
-        stormIntensity: selectedOptions.stormIntensity,
     };
 
     return (
@@ -318,6 +316,13 @@ function RadarMap({ readings }) {
                                 label="Wind Direction"
                                 name="windDirection"
                                 checked={selectedOptions.windDirection}
+                                onChange={handleOption}
+                            />
+                            <Form.Check
+                                type="checkbox"
+                                label="Temperature"
+                                name="temperature"
+                                checked={selectedOptions.temperature}
                                 onChange={handleOption}
                             />
                             <Form.Check

@@ -1,13 +1,15 @@
 import {Card, Col, Row} from 'react-bootstrap';
+import {getAverage} from '../utils/math';
 
 function MetricCard({
     title,
-    change,
+    metric,
     icon,
     unit,
-    recent,
-    historical
 }) {
+    console.log(metric);
+    const average = getAverage(metric);
+    console.log(average);
     return (
         <Col md={6} lg={3}>
             <Card className="h-100">
@@ -19,12 +21,12 @@ function MetricCard({
                         </span>
                     </div>
                     <h4 className="fw-bold">
-                        {change >= 0 ? "+" : ""}
-                        {change.toFixed(1)}%
+                        {average >= 0 ? "+" : ""}
+                        {average.toFixed(1)}%
                     </h4>
-                    <div className="text-muted small">
+                    {/* <div className="text-muted small">
                         {recent.toFixed(1)} vs {historical.toFixed(1)} {unit}
-                    </div>
+                    </div> */}
                 </Card.Body>
             </Card>
         </Col>
