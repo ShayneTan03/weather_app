@@ -64,10 +64,28 @@ function storm_frequency ({Data2}) {
             ]}
             layout={{
                 title: "Storm Features Against Average Rainfall and Wind Speed",
-                xaxis: { title: "Avg Rainfall (mm)", autorange: true },
-                yaxis: { title: "Avg Windspeed (km/s)", autorange: true },
+                xaxis: { 
+                    title: {
+                        text: "Avg Rainfall (mm)",
+                        standoff: 20  // Add space between axis and title
+                    },
+                    autorange: true 
+                },
+                yaxis: { 
+                    title: {
+                        text: "Avg Windspeed (km/s)",
+                        standoff: 20  // Add space between axis and title
+                    },
+                    autorange: true 
+                },
                 hovermode: "closest",
-                showscale: true
+                showscale: true,
+                margin: { 
+                    l: 80,  
+                    r: 50, 
+                    t: 50, 
+                    b: 80 
+                }
             }}
             config = {{responsive: true }}
             style = {{width: "100%", height: "450px"}}
