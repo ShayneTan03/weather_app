@@ -1,4 +1,4 @@
-This subfolder is used for the development of code to process radar images. The code of the final module will be copied into the main algorithm but during development phase, this portion of the algorithm was fragmented and developed separately
+This subfolder is used for the development of code for the main processing algorithm that combines radar images and weather data to produce a list of valid storms. This subfolder was created to focus on the image processing portion of the main processing algorithm
 
 1) Development scripts
 - `image_processor.ipynb`
