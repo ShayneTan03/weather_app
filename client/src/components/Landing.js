@@ -10,12 +10,16 @@ import RadarMap, {DetectedStorms} from "./RadarMap";
 import Plot1 from "./Plot1";
 import Plot2 from "./Plot2";
 import StormFeatureAnalysis from "./FeatureAnalysis";
+import GlobalDateRangePicker from "./DateRange";
 
 function Dashboard() {
     const [activeView, setActiveView] = useState("map"); 
     const [mapView, setMapView] = useState("map"); // Default => show Map view
     const [analysisTimeframe, setAnalysisTimeframe] = useState("Daily"); // default toggle
     const [readings, setReadings] = useState(null);
+    const [range, setRange] = useState([
+        { startDate : new Date(), endDate : new Date(), key : "selection"}
+    ]); // default time range
 
     // any asynchronous logic should be handled within useEffect with a nested fn
     // this will load the necessary data before loading the components of the web page
@@ -162,7 +166,9 @@ function Dashboard() {
         textinfo: "label+percent",
         hole: 0.5,
     };
-    
+
+    const start = range[0].startDate;
+    const end = range[0].endDate;    
 
     // feed required data into map
 
@@ -174,6 +180,9 @@ function Dashboard() {
                 title="Storm Tracker Dashboard"
                 subtitle="Track storms over different intervals"
             />
+
+            {/* Show Date Range Picker above navigation bar*/}
+            <GlobalDateRangePicker range={range} setRange={setRange}/> 
 
             <div className = 'my-4'>
                 <Navigation
