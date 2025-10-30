@@ -36,4 +36,13 @@
 * time series plot with dual y axis, rainfall intensity and mean wind speed
 * frequency heatmap of wind speed against rainfall intensity
 
-## 
+# **28 Oct 2025 22:00**
+
+## Adjustment on feature analysis
+* include the storm-specific analytics tab as per our figma prototype
+
+## More information needed on storm frequency
+* ask backend for a general idea on how many storms we should expect
+
+## More work on wiki
+* update wiki whenever necessary!
