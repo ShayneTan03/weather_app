@@ -13,7 +13,6 @@ from scipy.ndimage import label
 import io
 from skimage.color import rgb2lab
 from pg8000.dbapi import DatabaseError, ProgrammingError
-from dotenv import load_dotenv
 from datetime import datetime, timedelta, time
 import gc
 
@@ -26,6 +25,35 @@ s3 = boto3.client("s3")
 
 ####################################################################################################
 # helpers 
+# def get_secret(secret_arn):
+#     resp = secrets_client.get_secret_value(SecretId=secret_arn)
+#     return json.loads(resp['SecretString'])
+
+# def get_db_conn(secret_arn):
+#     global _db_conn
+#     if _db_conn:
+#         try:
+#             cur = _db_conn.cursor()
+#             cur.execute("SELECT 1;")
+#             cur.close()
+#             return _db_conn
+#         except Exception:
+#             _db_conn = None
+#     secret = get_secret(secret_arn)
+#     host = secret['host']
+#     dbname = secret['dbname']
+#     user = secret['username']
+#     password = secret['password']
+#     port = int(secret.get('port', 5432))
+#     _db_conn = pg8000.connect(
+#         host=host,
+#         database=dbname,
+#         user=user,
+#         password=password,
+#         port=port
+#     )
+#     return _db_conn
+
 def query_to_df(conn, query, params=None):
     """
     Execute an SQL query and return results as a pandas DataFrame.
@@ -49,6 +77,9 @@ def fetch_s3_bytes(s3_key):
         return None
     # otherwise fetch the object bytes from s3
     return s3.get_object(Bucket=BUCKET_NAME, Key=s3_key)['Body'].read()
+
+## dione help to create conn object
+
 ####################################################################################################
 
 
@@ -377,8 +408,6 @@ FROM weather_station
 station_data = query_to_df(conn,station_query)
 station_data
 
-
-
 ####################################################################################################
 # threshold settings
 dbz_threshold = 40# currently i set 40, but can change according to mapping too
@@ -393,6 +422,7 @@ dist_tol = 40
 
 
 ####################################################################################################
+
 
 
 
@@ -571,7 +601,7 @@ while current_date <= end_date:
             hour_timestamps_touched,
             timeline,
             weather_slice,
-            img_slice
+            img_slice,
         )
         gc.collect()
 
