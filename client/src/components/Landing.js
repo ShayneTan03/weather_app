@@ -14,7 +14,7 @@ import GlobalDateRangePicker from "./DateRange";
 
 function Dashboard() {
     const [activeView, setActiveView] = useState("Storm Map"); 
-    const [mapView, setMapView] = useState("Storm Map"); // Default => show Map view
+    const [mapView, setMapView] = useState("map"); // Default => show Map view
     const [analysisTimeframe, setAnalysisTimeframe] = useState("Daily"); // default toggle
     const [readings, setReadings] = useState(null);
     const [range, setRange] = useState([
