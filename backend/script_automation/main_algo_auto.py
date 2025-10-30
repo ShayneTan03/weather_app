@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[9]:
-
-
 import pandas as pd 
 import numpy as np 
 import requests
@@ -19,7 +13,6 @@ from scipy.ndimage import label
 import io
 from skimage.color import rgb2lab
 from pg8000.dbapi import DatabaseError, ProgrammingError
-from dotenv import load_dotenv
 from datetime import datetime, timedelta, time
 import gc
 
@@ -29,12 +22,6 @@ BUCKET_NAME = "dsa3101-storm-tracking-tw08"
 
 # create s3 client (this reads credentials from ~/.aws/credentials)
 s3 = boto3.client("s3")
-
-
-# # helpers
-
-# In[10]:
-
 
 ####################################################################################################
 # helpers 
@@ -84,6 +71,12 @@ def query_to_df(conn, query, params=None):
     # Create DataFrame
     return pd.DataFrame(data, columns=columns)
 
+def fetch_s3_bytes(s3_key):
+    # if key is None, just return None
+    if s3_key is None:
+        return None
+    # otherwise fetch the object bytes from s3
+    return s3.get_object(Bucket=BUCKET_NAME, Key=s3_key)['Body'].read()
 
 ## dione help to create conn object
 
@@ -404,120 +397,6 @@ def storm_object_checker(
         return res
 ######################################################################################
 
-
-# In[11]:
-
-
-# Load environment variables from .env file
-load_dotenv()
-
-# Read credentials
-DB_HOST = os.getenv("DB_HOST")
-DB_PORT = int(os.getenv("DB_PORT", 5432))
-DB_NAME = os.getenv("DB_NAME")
-DB_USER = os.getenv("DB_USER")
-DB_PASS = os.getenv("DB_PASS")
-
-# Create connection
-conn = pg8000.connect(
-    host=DB_HOST,
-    port=DB_PORT,
-    database=DB_NAME,
-    user=DB_USER,
-    password=DB_PASS
-)
-
-print("✅ Connected successfully to PostgreSQL!")
-
-
-# In[12]:
-
-
-def fetch_s3_bytes(s3_key):
-    # if key is None, just return None
-    if s3_key is None:
-        return None
-    # otherwise fetch the object bytes from s3
-    return s3.get_object(Bucket=BUCKET_NAME, Key=s3_key)['Body'].read()
-
-
-# # main backfil
-
-# In[27]:
-
-
-query = """
-    SELECT
-        distinct(timestamp) as date_range
-
-    FROM radar_image 
-    order by 1 asc
-    """
-
-df = query_to_df(conn,query)
-
-# convert to datetime
-df['date_converted'] = pd.to_datetime(df['date_range'])
-
-# lead the converted date by 1 (next row)
-df['next_date'] = df['date_converted'].shift(-1)
-
-# compute the day difference
-df['diff_days'] = (df['next_date'] - df['date_converted']).dt.total_seconds()/60
-
-
-# filter rows with gaps > 1 day
-gap_df = df[df['diff_days'] > 300]
-
-gap_df
-
-
-# In[23]:
-
-
-query = """
-    SELECT
-        distinct(timestamp::date) as date_range
-
-    FROM storm_observation 
-    order by 1 asc
-    """
-
-df = query_to_df(conn,query)
-
-# convert to datetime
-df['date_converted'] = pd.to_datetime(df['date_range'])
-
-# lead the converted date by 1 (next row)
-df['next_date'] = df['date_converted'].shift(-1)
-
-# compute the day difference
-df['diff_days'] = (df['next_date'] - df['date_converted']).dt.days
-
-
-# filter rows with gaps > 1 day
-gap_df = df[df['diff_days'] > 1]
-
-gap_df
-
-
-# In[ ]:
-
-
-# s3_key = "radar/2025/07/02/0900.png"   # full path in bucket
-# data = fetch_s3_bytes(s3_key)
-
-# # image_buffer = BytesIO(data)
-
-# # img = Image.open(image_buffer)
-# # display(img)
-
-# print(type(data))
-
-
-# In[13]:
-
-
 ####################################################################################################
 ### data pulling from db
 ## pull station data 
@@ -528,17 +407,6 @@ FROM weather_station
 
 station_data = query_to_df(conn,station_query)
 station_data
-
-
-
-# In[ ]:
-
-
-# conn.rollback()
-
-
-# In[14]:
-
 
 ####################################################################################################
 # threshold settings
@@ -556,7 +424,6 @@ dist_tol = 40
 ####################################################################################################
 
 
-# In[41]:
 
 
 ##################################################################################################
@@ -603,7 +470,6 @@ while current_date <= end_date:
     image_data['s3_key'] = image_data['s3_key'].replace({None: pd.NA}).ffill().bfill() # if any s3_key is missing, ffill from previous row first , bfill is to catch corner case of first few leading rows is empty
 
     image_data['from_s3'] = image_data['s3_key'].apply(fetch_s3_bytes)
-    # image_data['from_s3'] = image_data['from_s3'].replace({None: pd.NA}).ffill() #to handle missing radar iamge 
 
     print(f'starting hourly batch process for {day_start_ts} to {day_end_ts}')
     for i in range(len(hours)):
@@ -736,11 +602,6 @@ while current_date <= end_date:
             timeline,
             weather_slice,
             img_slice,
-            # final_storm_df,
-            # possible_storm_grid,
-            # final_storm_grid,
-            # buf,
-            # binary_data
         )
         gc.collect()
 
@@ -748,10 +609,3 @@ while current_date <= end_date:
     gc.collect()
 
     current_date += timedelta(days=1)
-
-
-# In[ ]:
-
-
-
-

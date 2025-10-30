@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[9]:
-
-
 import pandas as pd 
 import numpy as np 
 import requests
@@ -29,8 +23,6 @@ BUCKET_NAME = "dsa3101-storm-tracking-tw08"
 
 # create s3 client (this reads credentials from ~/.aws/credentials)
 s3 = boto3.client("s3")
-
-
 
 ####################################################################################################
 # helpers 
@@ -374,30 +366,6 @@ def storm_object_checker(
         return res
 ######################################################################################
 
-
-# Load environment variables from .env file
-load_dotenv()
-
-# Read credentials
-DB_HOST = os.getenv("DB_HOST")
-DB_PORT = int(os.getenv("DB_PORT", 5432))
-DB_NAME = os.getenv("DB_NAME")
-DB_USER = os.getenv("DB_USER")
-DB_PASS = os.getenv("DB_PASS")
-
-# Create connection
-conn = pg8000.connect(
-    host=DB_HOST,
-    port=DB_PORT,
-    database=DB_NAME,
-    user=DB_USER,
-    password=DB_PASS
-)
-
-print("✅ Connected successfully to PostgreSQL!")
-
-
-
 ####################################################################################################
 ### data pulling from db
 ## pull station data 
@@ -472,7 +440,6 @@ while current_date <= end_date:
     image_data['s3_key'] = image_data['s3_key'].replace({None: pd.NA}).ffill().bfill() # if any s3_key is missing, ffill from previous row first , bfill is to catch corner case of first few leading rows is empty
 
     image_data['from_s3'] = image_data['s3_key'].apply(fetch_s3_bytes)
-    # image_data['from_s3'] = image_data['from_s3'].replace({None: pd.NA}).ffill() #to handle missing radar iamge 
 
     print(f'starting hourly batch process for {day_start_ts} to {day_end_ts}')
     for i in range(len(hours)):
@@ -604,12 +571,7 @@ while current_date <= end_date:
             hour_timestamps_touched,
             timeline,
             weather_slice,
-            img_slice,
-            # final_storm_df,
-            # possible_storm_grid,
-            # final_storm_grid,
-            # buf,
-            # binary_data
+            img_slice
         )
         gc.collect()
 
