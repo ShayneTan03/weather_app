@@ -22,6 +22,10 @@ function Dashboard() {
         { startDate : new Date(), endDate : new Date(), key : "selection"}
     ]); // default time range
 
+    const [stormSummaryData, setStormSummaryData] = useState([]);
+    const [selectedStormId, setSelectedStormId] = useState(null);
+    const [stormEventLogData, setStormEventLogData] = useState(null);
+
     // any asynchronous logic should be handled within useEffect with a nested fn
     // this will load the necessary data before loading the components of the web page
     useEffect(() => {
