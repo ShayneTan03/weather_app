@@ -1,0 +1,1 @@
+This folder contains all the scripts used to develop the logic for our project. They have been segmented into subfolders for organisation, each with their own detailed readme.md .
