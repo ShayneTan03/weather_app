@@ -13,6 +13,7 @@ import StormFeatureAnalysis from "./FeatureAnalysis";
 import GlobalDateRangePicker from "./DateRange";
 import {fetchWeatherObservations, fetchWeatherStations} from "../api/fetchApi";
 import { useMemo } from "react";
+import { de } from "date-fns/locale";
 
 function Dashboard() {
     const [activeView, setActiveView] = useState("map");
@@ -26,11 +27,19 @@ function Dashboard() {
     });
 
     /**
-     * state for date range picker and passing to feature analysis component (stormSummary~stormEventLog)
+     * state for date range picker
+     * default start date : D-5 from today
      */
+    const defaultDate = new Date();
+    defaultDate.setDate(defaultDate.getDate() - 5); // 5 days ago
+    defaultDate.setHours(0,0,0,0); // set to start of day
     const [range, setRange] = useState([
-        { startDate : new Date(), endDate : new Date(), key : "selection"}
+        { startDate : defaultDate, endDate : defaultDate, key : "selection"}
     ]); // default time range
+
+    /**
+     * state for passing to FeatureAnalysis component (stormSummary~stormEventLog)
+     */
     
     const [stormSummaryData, setStormSummaryData] = useState([]);
     const [selectedStormId, setSelectedStormId] = useState(null);

@@ -4,10 +4,31 @@ import { DateRange } from "react-date-range";
 import { enUS } from "date-fns/locale";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
+import { max, set } from "date-fns";
+
+/* ---------- Helper Functions ---------- */
+
+function fmt(d) {
+    return new Date(d).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+    });
+}
+
+function toISODate(d) {
+    const z = new Date(d);
+    const y = z.getFullYear();
+    const m = String(z.getMonth() + 1).padStart(2, "0");
+    const day = String(z.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+}
+
 
 function DateRangePicker({ range, setRange }) {
     const [showPicker, setShowPicker] = useState(false);
     const pickerRef = useRef(null);
+    const [currentView, setCurrentView] = useState(range[0].startDate);
 
     useEffect(() => {
         function onDocClick(e) {
@@ -18,6 +39,19 @@ function DateRangePicker({ range, setRange }) {
         return () => document.removeEventListener("mousedown", onDocClick);
     }, [showPicker]);
     
+    const maxSelectableDate = new Date();
+    maxSelectableDate.setDate(maxSelectableDate.getDate() - 5);
+    maxSelectableDate.setHours(23,59,59,999);
+
+    const defaultStartDate = new Date(maxSelectableDate);
+    defaultStartDate.setHours(0, 0, 0, 0);
+
+    const defaultRange = [{
+        startDate: defaultStartDate,
+        endDate: defaultStartDate,
+        key: "selection"
+    }]
+
     const start = range[0].startDate;
     const end = range[0].endDate;
 
@@ -68,7 +102,7 @@ function DateRangePicker({ range, setRange }) {
                                     border: "1px solid #e5e7eb",
                                     borderRadius: 12,
                                     boxShadow: "0 10px 25px rgba(0,0,0,0.12)",
-                                    width: 620, 
+                                    width: "max-content", 
                                     overflow: "hidden",
                                     left: "50%",
                                     transform: "translateX(-50%)",
@@ -85,18 +119,51 @@ function DateRangePicker({ range, setRange }) {
                                     months={2}
                                     direction="horizontal"
                                     editableDateInputs
+                                    maxDate={maxSelectableDate}
+                                    showDateDisplay={false}
+                                    onShownDateChange={(date) => setCurrentView(date)}
                                 />
                                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "0 12px 12px" }}>
+                                    {/* Clear Button */}
                                     <button
                                         onClick={() => {
-                                            setRange([{ startDate: null, endDate: null, key: "selection" }]);
-                                            setShowPicker(false);
+                                            const firstDayOfView = new Date(
+                                                currentView.getFullYear(),
+                                                currentView.getMonth(),
+                                                1
+                                            );
+                                            // catch edge case where first day exceeds maxSelectableDate
+                                            let resetDate = firstDayOfView;
+                                            if (firstDayOfView > maxSelectableDate) {
+                                                resetDate = maxSelectableDate;
+                                            }
+
+                                            setRange([{
+                                                startDate: resetDate,
+                                                endDate: resetDate,
+                                                key: "selection"
+                                            }]);
+
                                         }}
                                         style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "white" }}
                                         type="button"
                                     >
                                         Clear
                                     </button>
+
+                                    {/* Return Button */}
+                                    <button
+                                        onClick = {() =>{
+                                            setRange(defaultRange);
+                                            setCurrentView(defaultStartDate);
+                                        }}
+                                        style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: '#f0f0f0' }}
+                                        type="button"
+                                    >
+                                        Return
+                                    </button>
+
+                                    {/* Done Button */}
                                     <button
                                         onClick={() => setShowPicker(false)}
                                         style={{ padding: "6px 10px", borderRadius: 8, border: 0, background: "black", color: "white" }}
@@ -114,22 +181,3 @@ function DateRangePicker({ range, setRange }) {
 }
 
 export default DateRangePicker;
-
-
-/* ---------- Helper Functions ---------- */
-
-function fmt(d) {
-    return new Date(d).toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "2-digit",
-    });
-}
-
-function toISODate(d) {
-    const z = new Date(d);
-    const y = z.getFullYear();
-    const m = String(z.getMonth() + 1).padStart(2, "0");
-    const day = String(z.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
-}
