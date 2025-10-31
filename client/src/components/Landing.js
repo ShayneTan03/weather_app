@@ -9,6 +9,7 @@ import fetchHumidity from "../api/fetchHumidity";
 import RadarMap, {DetectedStorms} from "./RadarMap";
 import Plot1 from "./Plot1";
 import Plot2 from "./Plot2";
+import Plot3 from "./Plot3";
 import StormFeatureAnalysis from "./FeatureAnalysis";
 import GlobalDateRangePicker from "./DateRange";
 
@@ -114,7 +115,20 @@ function Dashboard() {
         { stormId: "STORM_H", rainfall: 7.4, windspeed: 41.2, size: 210, intensity: 9.3 },
         { stormId: "STORM_I", rainfall: 4.9, windspeed: 24.6, size: 125, intensity: 6.1 },
     ];
-
+    // data for plot3
+    const Data3 = [
+        { stormId: "STORM_X", duration: 12, avg_area: 150, avg_dbz: 6.5 },
+        { stormId: "STORM_Y", duration: 8, avg_area: 200, avg_dbz: 7.0 },
+        { stormId: "STORM_Z", duration: 15, avg_area: 250, avg_dbz: 8.2 },
+        { stormId: "STORM_W", duration: 10, avg_area: 180, avg_dbz: 5.8 },
+        { stormId: "STORM_V", duration: 20, avg_area: 300, avg_dbz: 9.1 },
+        { stormId: "STORM_AA", duration: 14, avg_area: 220, avg_dbz: 7.5 },
+        { stormId: "STORM_AB", duration: 9, avg_area: 160, avg_dbz: 6.0 },
+        { stormId: "STORM_AC", duration: 11, avg_area: 190, avg_dbz: 6.8 },
+        { stormId: "STORM_AD", duration: 13, avg_area: 240, avg_dbz: 8.0 },
+        { stormId: "STORM_AE", duration: 7, avg_area: 130, avg_dbz: 5.5 },
+        { stormId: "STORM_AF", duration: 18, avg_area: 280, avg_dbz: 8.5 },
+    ];
     const recent2023 = trendData.filter((d) => d.period.startsWith("2023"));
     const historical2022 = trendData.filter((d) => d.period.startsWith("2022"));
 
@@ -320,23 +334,10 @@ function Dashboard() {
                         <Card>
                             <Card.Body>
                                 <Card.Title>
-                                    Storm Classification Distribution
+                                    Storm Duration Against Average Intensity
                                 </Card.Title>
-                                <Plot
-                                    data={[classificationTrace]}
-                                    layout={{
-                                        autosize: true,
-                                        showlegend: false,
-                                        margin: { t: 20, b: 20, l: 20, r: 20 },
-                                        paper_bgcolor: "transparent",
-                                        plot_bgcolor: "transparent",
-                                    }}
-                                    config={{
-                                        responsive: true,
-                                        displayModeBar: false,
-                                    }}
-                                    style={{ width: "100%", height: "300px" }}
-                                />
+                                {/* Display Plot3 */}
+                                <Plot3 Data3 = {Data3} />
                             </Card.Body>
                         </Card>
                     </Col>
