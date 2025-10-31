@@ -1,5 +1,6 @@
 import React, {useState} from "react";
 import {Card, Col, Row, Form, Button, Placeholder} from 'react-bootstrap';
+import { CSVLink } from "react-csv";
 
 /**
  * A simple card component that shows a single value
@@ -160,10 +161,53 @@ function StormFeatureAnalysis({ stormSummaryData }) {
                     <FeatureRow features = {featuresArray} />
 
                     {/* CSV Export Button */}
-                    <div className = 'mt-4'>
-                        <Button variant="outline-secondary">
-                            Export Storm Log to CSV
-                        </Button>
+                    <div className = 'mt-4 d-flex gap-2'>
+                        <CSVLink
+                            data = { stormSummaryData }
+                            headers = {[
+                                { label: "Storm ID", key: "storm_id" },
+                                { label: "Max Area (km²)", key: "max_area" },
+                                { label: "Total Distance (km)", key: "total_distance_traveled" },
+                                { label: "Duration (minutes)", key: "duration" },
+                                { label: "Max Intensity (dBZ)", key: "max_dbz" },
+                                { label: "Avg Area (km²)", key: "avg_area" },
+                                { label: "Avg Intensity (dBZ)", key: "avg_dbz" }
+                            ]}
+                            filename = {"storm_summary_export.csv"}
+                            style = {{ textDecoration: 'none' }}
+                        >
+                            <Button variant="outline-secondary">
+                                Export Storm Summary (All Storms) to CSV
+                            </Button>
+                        </CSVLink>
+
+                        <CSVLink
+                            data={ [] } // Empty data for now
+                            headers={[ // Define headers in Stage 2
+                                { label: "Timestamp", key: "timestamp" },
+                                { label: "Centroid X", key: "centroid_x" },
+                                { label: "Centroid Y", key: "centroid_y" },
+                                { label: "Peak Intensity (dBZ)", key: "peak_dBZ" },
+                                { label: "Area (px)", key: "area_px" },
+                                { label: "Rainfall (mm)", key: "rainfall_mm" }
+                            ]}
+                            filename={
+                                selectedStormID ? // set the filename based on selected storm ID
+                                `${selectedStormID}_log_export.csv` : 
+                                "storm_log_export.csv"
+                            }
+                            style = {{ textDecoration: 'none' }}
+                            // Disable the link for now
+                            // deleted the 'disabled' prop and added onClick handler to show alert
+                            onClick={(e) => { 
+                                alert("This feature will be enabled in Stage 2 when API 2 is connected.");
+                                e.preventDefault(); 
+                            }}
+                        >
+                            <Button variant="outline-secondary">
+                                Export Log (Selected Storm) to CSV
+                            </Button>
+                        </CSVLink>
                     </div>
 
                     {/* Storm Trajectory Map*/}
