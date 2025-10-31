@@ -91,10 +91,17 @@ function DateRangePicker({ range, setRange, activeShortcut, setActiveShortcut })
                 {/* Wrap by Card component */}
                 <div className="d-flex justify-content-between align-items-center mb-3">
 
-                    <Card.Title className="mb-0">Select Date Range</Card.Title>
+                    {/* Card Title and Latest Data */}
+                    <div>
+                        <Card.Title className="mb-0">Select Date Range</Card.Title>
+                        <div className='text-muted' style={{ marginTop: '4px' }}>
+                            Latest available data: <strong>{fmt(maxSelectableDate)}</strong>
+                        </div>
+                    </div>
+                    
                     
                     {/* Shortcut Buttons */}
-                    <ButtonGroup size="sm" ref={shortcutRef}>
+                    <ButtonGroup size="sm" ref={shortcutRef}>   
                         {/* Last 1 Day  */}
                         <Button
                             variant = "outline-secondary"
