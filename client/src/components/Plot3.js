@@ -5,32 +5,44 @@ import Plot from "react-plotly.js";
 function duration_intensity ({Data3}) {
     const x = Data3 ? Data3.map(d => d.duration) : [];
     const y = Data3 ? Data3.map(d => d.avg_dbz) : [];
-    const size = Data3 ? Data3.map(d => d.avg_area) : [];
-    const parseData = { x, y, size };
-    const sizes = parseData.size && parseData.size.length ? parseData.size : [1];
-    const maxSize = Math.max(...sizes);
-    const desiredMaxPx = 7.5;
-    const sizeref = 2 * maxSize / (desiredMaxPx * desiredMaxPx);
+    const rawSizes = Data3 ? Data3.map(d => Number(d.avg_area) || 1) : [1];
 
+    // scale raw area values to pixel diameters so markers render consistently (enlarged 3x)
+    const minRaw = Math.min(...rawSizes);
+    const maxRaw = Math.max(...rawSizes);
+    const minPx = 10;   
+    const maxPx = 50;  
+    const scaledSizes = rawSizes.map(s => {
+      if (maxRaw === minRaw) return Math.round(Math.max(minPx, Math.min(maxPx, s)));
+      const norm = (s - minRaw) / (maxRaw - minRaw);
+      return Math.round(minPx + norm * (maxPx - minPx));
+    });
+
+    const sizes = scaledSizes.length ? scaledSizes : [4];
+
+    // pick a few sample indices for the legend (no plotted points)
     const sampleIndices = sizes.length >= 3
       ? [0, Math.floor(sizes.length / 2), sizes.length - 1]
       : sizes.map((_, i) => i);
-    const legendTraces = sampleIndices.map(i => ({
-      type: 'scatter',
-      mode: 'markers',
-      x: [parseData.x[i]],
-      y: [parseData.y[i]],
-      name: `Area: ${sizes[i]}`,
-      marker: {
-        size: sizes[i],
-        sizemode: 'area',
-        sizeref,
-        sizemin: 4
-      },
-      // legend entries only (we keep the plotted sample points; they are few)
-      showlegend: true,
-      hoverinfo: 'none'
-    }));
+
+   // create legend-only traces with a real point but hidden from the plot
+   const legendTraces = sampleIndices.map(i => ({
+     type: 'scatter',
+     mode: 'markers',
+     x: [0],
+     y: [0],
+     name: `Area: ${rawSizes[i]}`,
+     marker: {
+       size: sizes[i],      
+       sizemode: 'diameter',
+       color: '#000000',       // ensure consistent legend color
+       opacity: 0.95,
+       symbol: 'circle'
+     },
+     visible: 'legendonly', 
+     showlegend: true,
+     hoverinfo: 'none'
+   }));
 
     return (
         <Plot
@@ -38,39 +50,50 @@ function duration_intensity ({Data3}) {
                 {
                     type: 'scatter',
                     mode: 'markers',
-                    x: parseData.x,
-                    y: parseData.y,
+                    x,
+                    y,
                     marker: {
-                        size: parseData.size,
-                        sizeref,
-                        sizemode: 'area',
-                        sizemin: 4,
+                        size: sizes,           // pixel diameters applied to dataset points
+                        sizemode: 'diameter',
                         opacity: 0.8
                     },
-                    hovertemplate: 'Duration: %{x}<br>Intensity: %{y}<br>Area: %{marker.size}<extra></extra>',
+                    // show original area in hover
+                    customdata: rawSizes,
+                    hovertemplate: 'Duration: %{x}<br>Intensity: %{y}<br>Area: %{customdata}<extra></extra>',
                     showlegend: false
                 },
                 ...legendTraces
             ]}
             layout={{
                 title: 'Storm Duration vs Intensity',
-                xaxis: { title: 'Duration' },
-                yaxis: { title: 'Intensity (dbZ)' },
-                // reduce render size so axis titles remain visible
-                width: 700,
-                height: 450,
-                margin: { l: 60, r: 150, t: 60, b: 60 },
-                font: { size: 12 },
-                legend: {
-                    orientation: 'v',
-                    x: 1.02,
-                    xanchor: 'left',
-                    y: 1
+                xaxis: { 
+                    title: {
+                        text: "Duration",
+                        standoff: 20  // Add space between axis and title
+                    },
+                    autorange: true 
+                },
+                yaxis: { 
+                    title: {
+                        text: "Average Intensity (dbZ)",
+                        standoff: 20  // Add space between axis and title
+                    },
+                    autorange: true 
+                },
+                hovermode: "closest",
+                showscale: true,
+                margin: { 
+                    l: 80,  
+                    r: 50, 
+                    t: 50, 
+                    b: 80 
                 }
             }}
-            config={{ responsive: true }}
+            config = {{responsive: true }}
+            style = {{width: "100%", height: "450px"}}
         />
     );
 }
 
-export default duration_intensity;
+
+export default duration_intensity

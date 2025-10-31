@@ -269,7 +269,6 @@ function Dashboard() {
                                 },
                             ]}
                         />
-                        <RadarMap readings={readings}/>
                         <Row className="justify-content-center mb-4 mt-5">
                             <Col xs={12} md={8}>
                                 <Card>
