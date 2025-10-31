@@ -25,12 +25,18 @@ function Dashboard() {
         end: new Date("2025-10-31T23:59:59Z")
     });
 
-
-    const [readings, setReadings] = useState(null);
+    /**
+     * state for date range picker and passing to feature analysis component (stormSummary~stormEventLog)
+     */
     const [range, setRange] = useState([
         { startDate : new Date(), endDate : new Date(), key : "selection"}
     ]); // default time range
+    
+    const [stormSummaryData, setStormSummaryData] = useState([]);
+    const [selectedStormId, setSelectedStormId] = useState(null);
+    const [stormEventLogData, setStormEventLogData] = useState(null);
 
+    const [readings, setReadings] = useState(null);
     // any asynchronous logic should be handled within useEffect with a nested fn
     // this will load the necessary data before loading the components of the web page
     useEffect(() => {
