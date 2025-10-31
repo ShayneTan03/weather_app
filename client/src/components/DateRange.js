@@ -16,13 +16,13 @@ function fmt(d) {
     });
 }
 
-function toISODate(d) {
-    const z = new Date(d);
-    const y = z.getFullYear();
-    const m = String(z.getMonth() + 1).padStart(2, "0");
-    const day = String(z.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
-}
+// function toISODate(d) {
+//     const z = new Date(d);
+//     const y = z.getFullYear();
+//     const m = String(z.getMonth() + 1).padStart(2, "0");
+//     const day = String(z.getDate()).padStart(2, "0");
+//     return `${y}-${m}-${day}`;
+// }
 
 /* ---------- Main Component ---------- */
 
