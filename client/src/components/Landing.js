@@ -40,7 +40,7 @@ function Dashboard() {
     /**
      * state for passing to FeatureAnalysis component (stormSummary~stormEventLog)
      */
-    
+    const [activeShortcut, setActiveShortcut] = useState(1);
     const [stormSummaryData, setStormSummaryData] = useState([]);
     const [selectedStormId, setSelectedStormId] = useState(null);
     const [stormEventLogData, setStormEventLogData] = useState(null);
@@ -276,7 +276,12 @@ function Dashboard() {
             />
 
             {/* Show Date Range Picker above navigation bar*/}
-            <GlobalDateRangePicker range={range} setRange={setRange}/> 
+            <GlobalDateRangePicker
+                range={range}
+                setRange={setRange}
+                activeShortcut={activeShortcut}
+                setActiveShortcut={setActiveShortcut}
+                /> 
 
             <div className = 'my-4'>
                 <Navigation
