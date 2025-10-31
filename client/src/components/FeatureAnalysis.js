@@ -3,9 +3,28 @@ import {Card, Col, Row, Form, Button, Placeholder} from 'react-bootstrap';
 import { CSVLink } from "react-csv";
 
 /**
+ * Helper function to format ISO time strings to a more readable format
+ * YYYY-MM-DD HH:MM(24hr)
+ * Used Swedish locale to get the desired format easily
+ * @param {*} isoString 
+ * @returns {string} Formatted time string YYYY-MM-DD HH:MM (24hr) or "N/A" if input is invalid
+ */
+function fmtTime(isoString) {
+    if (!isoString) return "N/A";
+    return new Date(isoString).toLocaleString('sv-SE', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+}
+
+/**
  * A simple card component that shows a single value
  */
-function FeatureCard({title, value, unit}) {
+function FeatureCard({title, value, unit, start_time, end_time}) {
     return (
         <Col md = {4}>
             <Card className = 'h-100'>
@@ -15,12 +34,33 @@ function FeatureCard({title, value, unit}) {
                             {title}
                         </span>
                     </div>
-                    <h4 className = 'fw-bold'>
+
+                    {/* <h4 className = 'fw-bold'>
                         {value.toFixed(1)}
                         <span className = "text-muted small ms-2">
                             {unit}
                         </span>
-                    </h4>
+                    </h4> */}
+                    
+                    <div className='d-flex justify-content-between align-items-baseline'>
+                        {/* Main Value */}
+                        <h4 className = 'fw-bold mb-0'>
+                            {/* If value is an integer, show without decimal places */}
+                            {value % 1 === 0 ? value : value.toFixed(1)} 
+                            <span className = "text-muted small ms-2">
+                                {unit}
+                            </span>
+                        </h4>
+
+                        {/* Start/End Times (Show if available) */}
+                        {start_time && end_time && (
+                            <div className='text-end text-muted' style={{fontSize: '1.1rem', lineHeight: '1.4'}}>
+                                <div><strong>Start:</strong> {fmtTime(start_time)}</div>
+                                <div><strong>End:</strong> {fmtTime(end_time)}</div>
+                            </div>
+                        )}
+                    </div>
+                    
                 </Card.Body>
             </Card>
         </Col>
@@ -39,6 +79,8 @@ function FeatureRow({features}) {
                     title = {feature.title}
                     value = {feature.value}
                     unit = {feature.unit}
+                    start_time={feature.start_time}
+                    end_time={feature.end_time}
                 />
             ))}
         </Row>
@@ -109,19 +151,16 @@ function StormFeatureAnalysis({ stormSummaryData }) {
             unit: "km²", // need to confirm unit
         },
         {
-            title: "Total Distance",
-            value: selectedStorm.total_distance_traveled || 0,
-            unit: "km",
+            title: "Max Intensity",
+            value: selectedStorm.max_dbz || 0,
+            unit: "dBZ",
         },
         {
             title: "Duration",
             value: selectedStorm.duration || 0,
             unit: "minutes", // need to confirm unit
-        },
-        {
-            title: "Max Intensity",
-            value: selectedStorm.max_dbz || 0,
-            unit: "dBZ",
+            start_time: selectedStorm.start_time,
+            end_time: selectedStorm.end_time
         },
         {
             title: "Avg Area",
@@ -132,6 +171,11 @@ function StormFeatureAnalysis({ stormSummaryData }) {
             title: "Avg Intensity",
             value: selectedStorm.avg_dbz || 0,
             unit: "dBZ",
+        },
+        {
+            title: "Total Distance",
+            value: selectedStorm.total_distance_traveled || 0,
+            unit: "km",
         }
     ] : []; // Fallback to empty array if no storm is selected
 
@@ -166,12 +210,14 @@ function StormFeatureAnalysis({ stormSummaryData }) {
                             data = { stormSummaryData }
                             headers = {[
                                 { label: "Storm ID", key: "storm_id" },
-                                { label: "Max Area (km²)", key: "max_area" },
-                                { label: "Total Distance (km)", key: "total_distance_traveled" },
+                                { label: "Start Time", key: "start_time" },
+                                { label: "End Time", key: "end_time" },
                                 { label: "Duration (minutes)", key: "duration" },
-                                { label: "Max Intensity (dBZ)", key: "max_dbz" },
                                 { label: "Avg Area (km²)", key: "avg_area" },
-                                { label: "Avg Intensity (dBZ)", key: "avg_dbz" }
+                                { label: "Max Area (km²)", key: "max_area" },
+                                { label: "Avg Intensity (dBZ)", key: "avg_dbz" },
+                                { label: "Max Intensity (dBZ)", key: "max_dbz" },         
+                                { label: "Total Distance (km)", key: "total_distance_traveled" }                 
                             ]}
                             filename = {"storm_summary_export.csv"}
                             style = {{ textDecoration: 'none' }}
@@ -183,7 +229,7 @@ function StormFeatureAnalysis({ stormSummaryData }) {
 
                         <CSVLink
                             data={ [] } // Empty data for now
-                            headers={[ // Define headers in Stage 2
+                            headers={[ // Define headers after API is connected
                                 { label: "Timestamp", key: "timestamp" },
                                 { label: "Centroid X", key: "centroid_x" },
                                 { label: "Centroid Y", key: "centroid_y" },
@@ -200,7 +246,7 @@ function StormFeatureAnalysis({ stormSummaryData }) {
                             // Disable the link for now
                             // deleted the 'disabled' prop and added onClick handler to show alert
                             onClick={(e) => { 
-                                alert("This feature will be enabled in Stage 2 when API 2 is connected.");
+                                alert("This feature will be enabled when API is connected.");
                                 e.preventDefault(); 
                             }}
                         >
