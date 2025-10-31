@@ -144,6 +144,32 @@ function Dashboard() {
         { stormId: "STORM_I", rainfall: 4.9, windspeed: 24.6, size: 125, intensity: 6.1 },
     ];
 
+    // Dummy data for feature analysis component
+    const Data3 = [
+    {
+        storm_id: "STORM-A-2025",
+        start_time: "2025-10-01T10:00:00Z",
+        end_time: "2025-10-01T12:00:00Z",
+        duration: 120, 
+        avg_area: 150.5,
+        max_area: 300.0,
+        avg_dbz: 40.2,
+        max_dbz: 55.0,
+        total_distance_traveled: 25.5 // km
+    },
+    {
+        storm_id: "STORM-B-2025",
+        start_time: "2025-10-02T14:00:00Z",
+        end_time: "2025-10-02T15:30:00Z",
+        duration: 90,
+        avg_area: 120.0,
+        max_area: 250.0,
+        avg_dbz: 38.0,
+        max_dbz: 50.0,
+        total_distance_traveled: 15.0
+    }
+];
+
     const recent2023 = trendData.filter((d) => d.period.startsWith("2023"));
     const historical2022 = trendData.filter((d) => d.period.startsWith("2022"));
 
@@ -276,7 +302,7 @@ function Dashboard() {
 
                 <Row className="g-4"> 
                         {/* Display Feature Analysis */}
-                        {<StormFeatureAnalysis Data1={Data1} />}
+                        {<StormFeatureAnalysis stormSummaryData={Data3} />}
                         {/* Wrap the Plot1 with Col and Card for cleaner layout */}
                         <Col xs={12}>
                             <Card>
