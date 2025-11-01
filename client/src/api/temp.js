@@ -29,6 +29,7 @@
 //     { timestamp: "2025-10-20T06:00Z", rainfall: 3.8, size: 90 },
 //     ],
 // },
+// ]
 
 //data needed for plot2.js
 

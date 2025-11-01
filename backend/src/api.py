@@ -337,6 +337,110 @@ def stormobservations():
     except Exception as e:
         logger.error(f"Error fetching storm observations: {str(e)}")
         return make_response("error", message=str(e), code=500)
+    
+##get storm observations over a date range
+@cache.cached()
+@app.route('/list/stormobservations', methods = ["GET"])
+def stormobservations_daterange():
+    """
+    responses:
+        200:
+        description: lists all storm observations over a date range at 30 minute intervals
+    query params:
+        start: ISO UTC e.g. 2025-10-01T00:00:00Z
+        end:   ISO UTC e.g. 2025-10-01T12:00:00Z
+    """
+    start_str = request.args.get("start")
+    end_str = request.args.get("end")
+    if not start_str or not end_str:
+        return make_response("error", message="Missing 'start' or 'end' query parameter", code=400)
+
+    try:
+        start_dt = datetime.datetime.strptime(start_str, "%Y-%m-%dT%H:%M:%SZ")
+        end_dt = datetime.datetime.strptime(end_str, "%Y-%m-%dT%H:%M:%SZ")
+    except Exception as e:
+        return make_response("error", message=f"Invalid datetime format: {str(e)}. Use YYYY-MM-DDTHH:MM:SSZ", code=400)
+
+    cache_key = f"stormobservations_{start_str}_{end_str}"
+    cached = cache.get(cache_key)
+    if cached:
+        logger.info("Cache hit for storm observations daterange")
+        return make_response("success", data=cached, message="Fetched storm observations for date range from cache.")
+
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM storm_observation;")
+        rows = cur.fetchall()
+        colnames = [desc[0] for desc in cur.description]
+        cur.close()
+
+        # Build list of dict rows and try to detect a datetime per row
+        observations = []
+        for row in rows:
+            row_dict = dict(zip(colnames, row))
+            obs_time = None
+
+            # prefer actual datetime objects in row values
+            for v in row:
+                if isinstance(v, datetime.datetime):
+                    obs_time = v
+                    break
+
+            # if none found, attempt to parse any string-like fields
+            if obs_time is None:
+                for v in row:
+                    if isinstance(v, str):
+                        for fmt in ("%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
+                            try:
+                                obs_time = datetime.datetime.strptime(v, fmt)
+                                break
+                            except Exception:
+                                continue
+                    if obs_time is not None:
+                        break
+
+            # attach parsed obs_time (if found) for easier filtering
+            if obs_time is not None:
+                # normalize naive datetimes to naive UTC assumed
+                if obs_time.tzinfo is not None:
+                    obs_time = obs_time.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+                row_dict["_obs_time"] = obs_time
+                observations.append(row_dict)
+
+        # Filter by range and bucket into 30-minute intervals
+        buckets = {}
+        for obs in observations:
+            obs_time = obs.get("_obs_time")
+            if obs_time is None:
+                continue
+            if obs_time < start_dt or obs_time > end_dt:
+                continue
+            seconds_since_start = (obs_time - start_dt).total_seconds()
+            bucket_index = int(seconds_since_start // (30 * 60))
+            bucket_time = start_dt + datetime.timedelta(minutes=30 * bucket_index)
+            bucket_key = bucket_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+            # remove helper key when returning
+            obs_copy = {k: v for k, v in obs.items() if k != "_obs_time"}
+            buckets.setdefault(bucket_key, []).append(obs_copy)
+
+        # Build final list covering every 30-minute interval between start and end inclusive
+        results = []
+        current = start_dt
+        while current <= end_dt:
+            key = current.strftime("%Y-%m-%dT%H:%M:%SZ")
+            results.append({
+                "timestamp": key,
+                "observations": buckets.get(key, [])
+            })
+            current += datetime.timedelta(minutes=30)
+
+        cache.set(cache_key, results)
+        logger.info("Stored new result in cache for /list/stormobservations (daterange)")
+
+        return make_response("success", data=results, message=f"Fetched storm observations from {start_str} to {end_str} at 30-minute intervals.")
+    except Exception as e:
+        logger.error(f"Error fetching storm observations (daterange): {str(e)}")
+        return make_response("error", message=str(e), code=500)
         
 ##get specific storm observation
 @cache.cached()
@@ -488,6 +592,46 @@ def display_stormobs():
 
     cur.close()
     return jsonify(data)
+
+##Exporting client-side specific json objects
+def transform_to_radarmap(row_dict, DateRange: str):
+    pass
+
+def transform_to_stormMetric(row_dict):
+    pass
+
+def transform_to_stormLog(row_dict):
+    pass
+
+def transform_to_plot1():
+    """ 
+    Shape needed for Plot1.js (Data1): 
+    Array of storms, each element being an array of timestamp, rainfall, and size at a 30 minute interval
+    Inputs storm_obs and weather_obs should already be filtered by dateRange before passing it to this function
+    """
+    Data1 = {}
+    stormobs = stormobservations_daterange()
+    for timestamp in stormobs:
+        for obs in timestamp["observations"]:
+            id = obs["storm_id"]
+            if id not in Data1:
+                Data1[id] = [{ "timestamp": obs["timestamp"], "size": obs["size"]}]
+                #FIXME: join weather_observation before returning stormobservations_daterange
+            else:
+                Data1[id].append({ "timestamp": obs["timestamp"], "size": obs["size"]})
+
+    Data1 = [
+        {"storm_id": storm_id, "points": points}
+        for storm_id, points in Data1.items()
+    ]
+    return Data1
+
+
+def transform_to_plot2(row_dict):
+    pass
+
+def transform_to_plot3(row_dict):
+    pass
 
 if __name__ == '__main__':
     app.run(debug=True)
