@@ -489,7 +489,7 @@ def display_stormobs():
     cur.close()
     return jsonify(data)
 
-@app.route('/join/weatherobsStormobs', methods=["GET"])
+@app.route('/join/plot2', methods=["GET"])
 @cache.cached(timeout=3600, query_string=True)
 def display_join():
     """
@@ -513,6 +513,7 @@ def display_join():
         SELECT
             so.timestamp, 
             so.area_px,
+            so.peak_dbz,
             aw.avg_rainfall_mm,
             aw.avg_wind_speed
         FROM
@@ -543,6 +544,98 @@ def display_join():
         return make_response("error", message=str(e), code=500)
     
     return make_response("success", data=data, message=f"Fetched averaged measurements and storm area at {timestamp} successfully")
+
+@app.route('/join/plot1', methods=["GET"])
+@cache.cached(timeout=3600, query_string=True)
+def get_plot1_data():
+    """
+    Returns storm time-series data for Plot1 visualization
+    Format: Array of storms, each with storm_id and time-series points
+    Each point contains: timestamp, rainfall, windspeed, size
+    
+    Optional query params:
+    - start_time: Filter storms starting after this time
+    - end_time: Filter storms ending before this time
+    """
+    start_time = request.args.get('start_time')
+    end_time = request.args.get('end_time')
+    
+    # SQL query to get storm observations with averaged weather data
+    sql_query = """
+        WITH weather_avg AS (
+            SELECT
+                timestamp,
+                AVG(rainfall_mm) AS avg_rainfall,
+                AVG(wind_speed) AS avg_windspeed
+            FROM
+                weather_observation
+            GROUP BY
+                timestamp
+        )
+        SELECT
+            s.storm_id,
+            so.timestamp,
+            so.area_px,
+            COALESCE(wa.avg_rainfall, 0) AS rainfall,
+            COALESCE(wa.avg_windspeed, 0) AS windspeed
+        FROM
+            storm s
+        INNER JOIN
+            storm_observation so ON so.obs_id = ANY(s.obs_id_list)
+        LEFT JOIN
+            weather_avg wa ON so.timestamp = wa.timestamp
+        WHERE
+            s.duration > 0
+    """
+    
+    params = []
+    if start_time:
+        sql_query += " AND s.start_time >= %s"
+        params.append(start_time)
+    if end_time:
+        sql_query += " AND s.end_time <= %s"
+        params.append(end_time)
+    
+    sql_query += " ORDER BY s.storm_id, so.timestamp;"
+    
+    try:
+        cur = conn.cursor()
+        if params:
+            cur.execute(sql_query, tuple(params))
+        else:
+            cur.execute(sql_query)
+        
+        rows = cur.fetchall()
+        colnames = [desc[0] for desc in cur.description]
+        raw_data = [dict(zip(colnames, row)) for row in rows]
+        cur.close()
+        
+        # Transform data into required format: group by storm_id
+        storms_dict = {}
+        for row in raw_data:
+            storm_id = row['storm_id']
+            if storm_id not in storms_dict:
+                storms_dict[storm_id] = {
+                    'stormId': storm_id,
+                    'points': []
+                }
+            
+            storms_dict[storm_id]['points'].append({
+                'timestamp': row['timestamp'].isoformat() if hasattr(row['timestamp'], 'isoformat') else str(row['timestamp']),
+                'rainfall': float(row['rainfall']) if row['rainfall'] is not None else 0.0,
+                'windspeed': float(row['windspeed']) if row['windspeed'] is not None else 0.0,
+                'size': float(row['area_px']) if row['area_px'] is not None else 0.0
+            })
+        
+        # Convert dict to list
+        data = list(storms_dict.values())
+        
+        logger.info(f"Stored new results in cache for /plot1 (returned {len(data)} storms)")
+        return make_response("success", data=data, message=f"Fetched {len(data)} storms with time-series data successfully")
+    
+    except Exception as e:
+        logger.error(f"Error fetching plot1 data: {str(e)}")
+        return make_response("error", message=str(e), code=500)
 
 if __name__ == '__main__':
     app.run(debug=True)

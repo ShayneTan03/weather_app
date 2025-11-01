@@ -40,3 +40,18 @@ function unwrap(payload) {
   // If endpoint returns raw array/object, just return it
   return payload;
 }
+
+// Plot1
+export async function getPlot1Data(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  const p = await request(`/join/plot1${qs ? `?${qs}` : ""}`);
+  return unwrap(p);
+}
+
+// Plot2
+export async function display_join(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    console.log(qs);
+    const p = await request(`/join/plot2${qs ? `?${qs}` : ""}`);
+    return unwrap(p);
+}
