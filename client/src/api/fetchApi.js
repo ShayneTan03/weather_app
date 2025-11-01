@@ -1,137 +1,150 @@
-// mock api functions simulating database responses for weather radar and storm tracking models
-const singaporeCoords = [1.3521, 103.8198];
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
-// generate random numbers and timestamps
-const randomFloat = (min, max) =>
-    (Math.random() * (max - min) + min).toFixed(2);
+async function request(path, opts = {}) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), opts.timeout || 30000);
+  try {
+    const res = await fetch(API_BASE + path, {
+      method: opts.method || "GET",
+      headers: Object.assign({"Content-Type": "application/json"}, opts.headers || {}),
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+      signal: controller.signal,
+    });
+    clearTimeout(id);
 
-const randomInt = (min, max) =>
-    Math.floor(Math.random() * (max - min + 1)) + min;
+    // network layer errors
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`${res.status} ${res.statusText} ${text}`);
+    }
 
-const randomTimestamp = (
-    start = new Date(2025, 0, 1),
-    end = new Date(2025, 9, 1)
-) => {
-    return new Date(
-        start.getTime() + Math.random() * (end.getTime() - start.getTime())
-    ).toISOString();
-};
-
-/**
- *
- * @returns Storm Array
- */
-async function fetchStorms() {
-    const data = Array.from({ length: 10 }, (_, i) => ({
-        storm_id: i + 1,
-        parent_id: i > 0 ? randomInt(1, i) : null,
-        start_time: randomTimestamp(),
-        end_time: randomTimestamp(),
-        duration: randomFloat(0.5, 5.0),
-        avg_centroid_x: randomFloat(0, 100),
-        avg_centroid_y: randomFloat(0, 100),
-        avg_dbz: randomFloat(20, 60),
-        avg_area: randomFloat(10, 200),
-        n_frames: randomInt(5, 30),
-        num_children: randomInt(0, 3),
-        classification: ["isolated", "clustered", "squall-line"][
-            randomInt(0, 2)
-        ],
-        grid_id_list: JSON.stringify(
-            Array.from({ length: 5 }, () => randomInt(1000, 2000))
-        ),
-        anchor_x_list: JSON.stringify(
-            Array.from({ length: 5 }, () => randomFloat(0, 100))
-        ),
-        anchor_y_list: JSON.stringify(
-            Array.from({ length: 5 }, () => randomFloat(0, 100))
-        ),
-        area_list: JSON.stringify(
-            Array.from({ length: 5 }, () => randomFloat(10, 300))
-        ),
-    }));
-    return Promise.resolve(data);
+    // try to parse JSON. Some endpoints return wrapped object {status, data, message, timestamp}
+    const payload = await res.json().catch(() => null);
+    return payload;
+  } catch (err) {
+    clearTimeout(id);
+    // bubble up AbortError or other errors
+    throw err;
+  }
 }
 
-async function fetchStormObservations() {
-    const data = Array.from({ length: 10 }, (_, i) => ({
-        obs_id: i + 1,
-        timestamp: randomTimestamp(),
-        grid_id: randomTimestamp(),
-        centroid_x: randomFloat(0, 100),
-        centroid_y: randomFloat(0, 100),
-        anchor_x: randomFloat(0, 100),
-        anchor_y: randomFloat(0, 100),
-        peak_dBZ: randomFloat(30, 60),
-        area_px: randomFloat(1000, 5000),
-    }));
-    return Promise.resolve(data);
+// Helper: handle wrapper {status, data, message, timestamp}
+function unwrap(payload) {
+  if (!payload) return null;
+  // If backend uses make_response wrapper: { status: "success", data: .., message: .. }
+  if (payload && typeof payload === "object" && "status" in payload && "data" in payload) {
+    if (payload.status === "success") return payload.data;
+    // if backend returns {status: "error"}
+    throw new Error(payload.message || "API returned error status");
+  }
+  // If endpoint returns raw array/object, just return it
+  return payload;
 }
 
-async function fetchStormGrids() {
-    const data = Array.from({ length: 10 }, () => ({
-        timestamp: randomTimestamp(),
-        grid_data: JSON.stringify({
-            intensity: randomFloat(10, 60),
-            coverage: randomFloat(20, 80),
-            cellCount: randomInt(5, 20),
-        }),
-    }));
-    return Promise.resolve(data);
+/* --- Exported endpoint helpers --- */
+
+// Weather Stations
+export async function getWeatherStations() {
+  const p = await request("/list/weatherstations");
+  return unwrap(p);
 }
 
-async function fetchWeatherStations() {
-  const [baseLat, baseLon] = singaporeCoords;
-
-  const LAT_RANGE = 0.1; // ~10 km north/south
-  const LON_RANGE = 0.05; // ~5 km east/west
-
-  const data = Array.from({ length: 10 }, (_, i) => {
-    const lat = parseFloat(
-      randomFloat(baseLat - LAT_RANGE, baseLat + LAT_RANGE)
-    );
-    const lon = parseFloat(
-      randomFloat(baseLon - LON_RANGE, baseLon + LON_RANGE)
-    );
-
-    return {
-      station_id: `STN${100 + i}`,
-      name: `Weather Station ${i + 1}`,
-      lat,
-      lon,
-      coord_basemap: {
-        lat: randomFloat(baseLat - LAT_RANGE, baseLat + LAT_RANGE),
-        lon: randomFloat(baseLon - LON_RANGE, baseLon + LON_RANGE),
-      },
-      coord: {
-        x: randomFloat(0, 100),
-        y: randomFloat(0, 100),
-      },
-    };
-  });
-
-  return Promise.resolve(data);
+export async function getWeatherStationById(station_id) {
+  const p = await request(`/weatherstation/${station_id}`);
+  return unwrap(p);
 }
 
-async function fetchWeatherObservations() {
-    const stations = await fetchWeatherStations();
-    const data = Array.from({ length: 10 }, (_, i) => ({
-        obs_id: i + 1,
-        station_id: stations[randomInt(0, stations.length - 1)].station_id,
-        timestamp: randomTimestamp(),
-        temperature_c: randomFloat(22, 34),
-        rainfall_mm: randomFloat(0, 500),
-        wind_speed_knots: randomFloat(0, 25),
-        wind_direction_degrees: randomFloat(0, 360),
-        humidity_pct: randomFloat(40, 100),
-    }));
-    return Promise.resolve(data);
+// Weather Observations
+export async function getWeatherObs(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  const p = await request(`/list/weatherobs${qs ? `?${qs}` : ""}`);
+  return unwrap(p);
 }
 
-module.exports = {
-    fetchStorms,
-    fetchStormObservations,
-    fetchStormGrids,
-    fetchWeatherStations,
-    fetchWeatherObservations,
-};
+export async function getWeatherObsById(obs_id) {
+  const p = await request(`/weatherobs/${obs_id}`);
+  return unwrap(p);
+}
+
+// Radar Images
+export async function getRadarImages(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  const p = await request(`/list/radarimages${qs ? `?${qs}` : ""}`);
+  return unwrap(p);
+}
+
+export async function getRadarImageById(image_id) {
+  const p = await request(`/radarimage/${image_id}`);
+  return unwrap(p);
+}
+
+// Storm Observations
+export async function getStormObservations() {
+  const p = await request("/list/stormobservations");
+  return unwrap(p);
+}
+
+export async function getStormObservationsDateRange(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  const p = await request(`/list/stormobservations${qs ? `?${qs}` : ""}`);
+  return unwrap(p);
+}
+
+export async function getStormObservationById(obs_id) {
+  const p = await request(`/stormobservation/${obs_id}`);
+  return unwrap(p);
+}
+
+// Raw storm observations (non-wrapped endpoint)
+export async function getStormObsRaw() {
+  const p = await request("/list/stormobs");
+  return unwrap(p);
+}
+
+export async function getStormObsById(id) {
+  const p = await request(`/stormobs/${id}`);
+  return unwrap(p);
+}
+
+// Storms
+export async function getStorms() {
+  const p = await request("/list/storms");
+  return unwrap(p);
+}
+
+export async function getStormsAtTimestamp(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  const p = await request(`/storms${qs ? `?${qs}` : ""}`);
+  return unwrap(p);
+}
+
+// Client-side formatted data exports
+export async function getPlot1Data(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  const p = await request(`/export/plot1${qs ? `?${qs}` : ""}`);
+  return unwrap(p);
+}
+
+export async function getPlot2Data(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  const p = await request(`/export/plot2${qs ? `?${qs}` : ""}`);
+  return unwrap(p);
+}
+
+export async function getPlot3Data(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  const p = await request(`/export/plot3${qs ? `?${qs}` : ""}`);
+  return unwrap(p);
+}
+
+export async function getRadarMapData(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  const p = await request(`/export/radarmap${qs ? `?${qs}` : ""}`);
+  return unwrap(p);
+}
+
+export async function getClientReadings(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  const p = await request(`/export/client_readings${qs ? `?${qs}` : ""}`);
+  return unwrap(p);
+}

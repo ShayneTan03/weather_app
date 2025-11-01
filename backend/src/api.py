@@ -594,31 +594,24 @@ def display_stormobs():
     return jsonify(data)
 
 ##Exporting client-side specific json objects
-def transform_to_radarmap(row_dict, DateRange: str):
-    pass
-
-def transform_to_stormMetric(row_dict):
-    pass
-
-def transform_to_stormLog(row_dict):
-    pass
-
 def transform_to_plot1():
     """ 
-    Shape needed for Plot1.js (Data1): 
-    Array of storms, each element being an array of timestamp, rainfall, and size at a 30 minute interval
+    Formatting .json needed for Plot1.js (Data1): 
+    Wrapped json, each json containing two headers, storm id and points,
+    with points being an array of timestamp, rainfall, and size at a 30 minute interval
     Inputs storm_obs and weather_obs should already be filtered by dateRange before passing it to this function
     """
     Data1 = {}
     stormobs = stormobservations_daterange()
+    #FIXME: join weather_observation before returning stormobservations_daterange
     for timestamp in stormobs:
         for obs in timestamp["observations"]:
             id = obs["storm_id"]
             if id not in Data1:
-                Data1[id] = [{ "timestamp": obs["timestamp"], "size": obs["size"]}]
-                #FIXME: join weather_observation before returning stormobservations_daterange
+                Data1[id] = [{ "timestamp": obs["timestamp"], "size": obs["size"], "rainfall": obs["rainfall"]}]
+                
             else:
-                Data1[id].append({ "timestamp": obs["timestamp"], "size": obs["size"]})
+                Data1[id].append({ "timestamp": obs["timestamp"], "size": obs["size"], "rainfall": obs["rainfall"]})
 
     Data1 = [
         {"storm_id": storm_id, "points": points}
@@ -627,11 +620,25 @@ def transform_to_plot1():
     return Data1
 
 
-def transform_to_plot2(row_dict):
-    pass
+def transform_to_plot2_3():
+    """
+    Formatting .json needed for Plot2.js, Plot3.js (Data2):
+    Wrapped json, each json containing four headers, storm id, average rainfall, average windspeed, average intensity
+    Avg rainfall and avg windspeed should be calculated from returned queries
+    """
+    stormobs = transform_to_plot1()
+    #FIXME: join weather_observation before returning stormobservations_daterange
 
-def transform_to_plot3(row_dict):
-    pass
+
+# const Data2 = [
+#         { stormId: "STORM_C", duration: 12, rainfall: 4.3, windspeed: 20.4, avg_area: 102, avg_dbz: 5.6 },
+#         { stormId: "STORM_D", duration: 10, rainfall: 5.3, windspeed: 28.0, avg_area: 150, avg_dbz: 7.8 },
+#         { stormId: "STORM_E", duration: 15, rainfall: 6.1, windspeed: 33.7, avg_area: 178, avg_dbz: 8.6 },
+#         { stormId: "STORM_F", duration: 8,  rainfall: 3.9, windspeed: 18.5, avg_area: 88,  avg_dbz: 4.7 },
+#         { stormId: "STORM_G", duration: 20, rainfall: 7.4, windspeed: 41.2, avg_area: 210, avg_dbz: 9.3 }
+#     ]
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
