@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import Plot from "react-plotly.js";
 import { Container, Row, Col, Card, Form } from "react-bootstrap";
 import { ArrowUp, ArrowDown, Clock } from "react-bootstrap-icons";
@@ -14,7 +14,24 @@ import GlobalDateRangePicker from "./DateRange";
 import {fetchWeatherObservations, fetchWeatherStations} from "../api/fetchApi";
 import { useMemo } from "react";
 import { de } from "date-fns/locale";
+import { set } from "date-fns";
 
+/**
+ * Helper function for date formatting for API call
+ */
+function toISODate(d) {
+    if (!d) return ''; // handle error case
+    const z = new Date(d);
+    const y = z.getFullYear();
+    const m = String(z.getMonth() + 1).padStart(2, "0");
+    const day = String(z.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+}
+
+
+/**
+ * The main Dashboard Displaying different components
+ */
 function Dashboard() {
     const [activeView, setActiveView] = useState("map");
 
@@ -37,6 +54,46 @@ function Dashboard() {
         { startDate : defaultDate, endDate : defaultDate, key : "selection"}
     ]); // default time range
 
+    /**
+     * state that contains full storm data fetched from backend
+     */
+    const [fullStormData, setFullStormData] = useState(null);
+
+    /**
+     * API CALL HERE
+     * fetch storm data whenever date range changes 
+     */
+    useEffect(() => {
+
+        const { startDate, endDate } = range[0];
+
+        if (startDate && endDate) {
+
+            const fetchStormData = async () => {
+
+                const apiURL = `/api/{name of the call}?start=${toISODate(startDate)}&end=${toISODate(endDate)}`;
+
+                try {
+                    console.log('Fetching storm data from:', apiURL); // for debugging
+
+                    const response = await fetch(apiURL);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const data = await response.json();
+
+                    // Update the state with fetched JSON data
+                    setFullStormData(data);
+                } catch (error) {
+                    console.error('Failed to fetch storm data:', error);
+                    setFullStormData(null); // reset the state when error occurs
+                }
+            };
+
+            fetchStormData();
+        }
+    }, [range]); // This useEffect runs whenever 'range' changes
+                    
     /**
      * state for passing to FeatureAnalysis component (stormSummary~stormEventLog)
      */
@@ -317,6 +374,7 @@ function Dashboard() {
                 <Row className="g-4"> 
                         {/* Display Feature Analysis */}
                         {<StormFeatureAnalysis stormSummaryData={Data3} />}
+                        {/* {<StormFeatureAnalysis allData={fullStormData} />} */}
                         {/* Wrap the Plot1 with Col and Card for cleaner layout */}
                         <Col xs={12}>
                             <Card>
