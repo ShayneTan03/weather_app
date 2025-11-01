@@ -374,7 +374,10 @@ function Dashboard() {
                 <Row className="g-4"> 
                         {/* Display Feature Analysis */}
                         {<StormFeatureAnalysis stormSummaryData={Data3} />}
-                        {/* {<StormFeatureAnalysis allData={fullStormData} />} */}
+
+                        {/* use fullStormData when API is ready */}
+                        {/* {<StormFeatureAnalysis allData={fullStormData} />} */} 
+                        
                         {/* Wrap the Plot1 with Col and Card for cleaner layout */}
                         <Col xs={12}>
                             <Card>
