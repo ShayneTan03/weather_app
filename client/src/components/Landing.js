@@ -11,7 +11,7 @@ import Plot1 from "./Plot1";
 import Plot2 from "./Plot2";
 import StormFeatureAnalysis from "./FeatureAnalysis";
 import GlobalDateRangePicker from "./DateRange";
-import {fetchWeatherObservations, fetchWeatherStations} from "../api/fetchApi";
+import {getWeatherObs, getWeatherStations} from "../api/fetchApi";
 import { useMemo } from "react";
 
 function Dashboard() {
@@ -42,14 +42,14 @@ function Dashboard() {
     useEffect(() => {
         async function loadData() {
             try {
-                const observations = await fetchWeatherObservations();
-                const stations = await fetchWeatherStations();
+                // Fetch actual weather observations and stations from the API
+                const observations = await getWeatherObs();
+                const stations = await getWeatherStations();
+
+                // Calculate metrics using the fetched data and current dateRange
                 const metrics = getMetrics(observations, dateRange);
 
-                /**
-                 * fetch all metrics here
-                 */
-
+                // Map stations to readings with metrics
                 const readingMap = stations.map((station) => {
                     const stationMetrics = metrics[station.station_id] || {};
 
