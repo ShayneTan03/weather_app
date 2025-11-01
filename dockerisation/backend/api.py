@@ -489,5 +489,60 @@ def display_stormobs():
     cur.close()
     return jsonify(data)
 
+@app.route('/join/weatherobsStormobs', methods=["GET"])
+@cache.cached(timeout=3600, query_string=True)
+def display_join():
+    """
+    Fetch averaged weather station readings according to timestamp
+    Left-join with storm data
+    Filter by required timestamp
+    """
+    timestamp = request.args.get('timestamp')
+
+    sql_query = """
+        WITH avg_weather AS (
+            SELECT
+                timestamp,
+                AVG(rainfall_mm) AS avg_rainfall_mm,
+                AVG(wind_speed) AS avg_wind_speed
+            FROM
+                weather_observation
+            GROUP BY
+                timestamp
+        )
+        SELECT
+            so.timestamp, 
+            so.area_px,
+            aw.avg_rainfall_mm,
+            aw.avg_wind_speed
+        FROM
+            storm_observation AS so
+        LEFT JOIN
+            avg_weather AS aw ON so.timestamp = aw.timestamp
+        WHERE
+            aw.timestamp = %s;     
+    """    
+
+    if not timestamp:
+        return jsonify({"error": "Missing 'timestamp' query parameter"}), 400
+    
+    try:
+        cur = conn.cursor()
+        cur.execute(sql_query, (timestamp,))
+        rows = cur.fetchall()
+
+        # convert to JSON-friendly format
+        colnames = [desc[0] for desc in cur.description]
+        data = [dict(zip(colnames, row)) for row in rows]
+
+        cur.close()
+        logger.info("Stored new results in cache for /storms")
+
+    except Exception as e:
+        logger.error(f"Error fetching storms by time: {str(e)}")
+        return make_response("error", message=str(e), code=500)
+    
+    return make_response("success", data=data, message=f"Fetched averaged measurements and storm area at {timestamp} successfully")
+
 if __name__ == '__main__':
     app.run(debug=True)
