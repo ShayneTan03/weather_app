@@ -1,11 +1,14 @@
-import {MapContainer, TileLayer, Marker, Popup, Circle} from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Circle } from "react-leaflet";
 import { useState, useEffect } from "react";
-import { Container, Row, Col, Card, Badge } from "react-bootstrap";
-import "bootstrap/dist/css/bootstrap.min.css";
+import { Card, Badge, Form, Button } from "react-bootstrap";
+import { FaPlay, FaPause, FaForward, FaBackward } from "react-icons/fa";
+import { getMapPointers, singaporeCoords } from "../constants/map";
+import { isStormCandidate } from "../utils/math";
 
-function SingaporeMap ({readings}) {
-    const singaporeCoords = [1.3521, 103.8198];
-     if (!readings) {
+function SingaporeMap({ readings, selectedOptions }) {
+    const MAP_POINTERS = getMapPointers(selectedOptions);
+
+    if (!readings || readings.length === 0) {
         return <div>Loading radar data...</div>;
     }
 
@@ -16,44 +19,68 @@ function SingaporeMap ({readings}) {
                 zoom={12}
                 scrollWheelZoom={true}
                 style={{ height: "50vh", width: "100%" }}
-                >
+            >
+                {/* Base map tiles */}
                 <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                 />
-                {readings.map((r) => {
-                    if (r.humidity === "NA") r.humidity=0;
-                    return(
-                        <>
-                        <Marker key={r.id} position={[r.latitude, r.longitude]}>
-                            <Popup>{r.name} <br/> Humidity: {r.humidity}%</Popup>
-                        </Marker>
-                        <Circle 
-                            center={[r.latitude, r.longitude]} 
-                            radius={r.humidity * 15}
-                            fillColor="red"
-                            fillOpacity="0.3">
-                        </Circle>
-                        </>
-                    );
-                })}
-                
+
+                {/* Station markers */}
+                {readings.map((r) => (
+                    <Marker key={r.station_id} position={[r.lat, r.lon]}>
+                        <Popup>
+                            <strong>{r.name}</strong>
+                            {MAP_POINTERS.map(
+                                (v) =>
+                                    v.display && (
+                                        <div key={`${r.station_id}-${v.key}`}>
+                                            {v.label}:{" "}
+                                            {r[v.key] === "NA" ? 0 : r[v.key]}{" "}
+                                            {v.unit}
+                                        </div>
+                                    )
+                            )}
+                        </Popup>
+                    </Marker>
+                ))}
+
+                {/* Humidity or metric circles */}
+                {MAP_POINTERS.map((v) =>
+                    v.display
+                        ? readings.map((r) => {
+                              const value =
+                                  r[v.key] === "NA" ? 0 : Number(r[v.key]);
+
+                              return (
+                                  <Circle
+                                      key={`${v.key}-${r.station_id}`}
+                                      center={[r.lat, r.lon]}
+                                      radius={value * v.scale}
+                                      fillColor={v.color}
+                                      fillOpacity={0.3}
+                                      stroke={false}
+                                  />
+                              );
+                          })
+                        : null
+                )}
             </MapContainer>
         </div>
-  );
-};
+    );
+}
 
 // to include other variables that helps us detect storms. ideally this should be some average or formula thats geo standard
-function isStormCandidate(reading) {
-    const minHumidity = 70;
-    const minArea = 20;
+// function isStormCandidate(reading) {
+//     const minHumidity = 70;
+//     const minArea = 20;
 
-    return reading.humidity > 70;
-}
+//     return reading.humidity > 70;
+// }
 
 // to be chucked into obj folder maybe class idk
 function createStormObj(reading, index) {
-    const intensity = Math.round((reading.humidity))
+    const intensity = Math.round(reading.humidity);
     const area = (Math.random() * 50 * 10).toFixed(1); // rnd for now
 
     return {
@@ -61,26 +88,24 @@ function createStormObj(reading, index) {
         intensity,
         area,
         center: {
-            x: reading.latitude.toFixed(3),
-            y: reading.longitude.toFixed(3)
-        }
-    }
+            x: reading.lat,
+            y: reading.lon,
+        },
+    };
 }
 
-export function DetectedStorms({readings}) {
+export function DetectedStorms({ readings }) {
     const [storms, setStorms] = useState([]);
-    
+
     useEffect(() => {
         if (readings && readings.length > 0) {
             const detectedStorms = readings
-            .filter(isStormCandidate)
-            .map((reading, i) => createStormObj(reading,i));
+                .filter(isStormCandidate)
+                .map((reading, i) => createStormObj(reading, i));
 
-        setStorms(detectedStorms);
-            
+            setStorms(detectedStorms);
         }
     }, [readings]);
-
 
     if (!readings) {
         return <div>Loading storm data...</div>;
@@ -88,49 +113,233 @@ export function DetectedStorms({readings}) {
 
     return (
         <>
-        <Card className="h-100">
-            <Card.Header>
-                <Card.Title>Detected Storms</Card.Title>
-                <small className="text-muted">{storms.length} storms detected</small>
-            </Card.Header>
-            <Card.Body style={{ maxHeight:"54.5vh", overflowY:"auto"}}>
-                {storms.map((storm) => (
-                <div className="border rounded p-3 mb-3">
-                    <div className="d-flex mb-2 justify-content-between align-items-center2">
-                    <span className="fw-medium">{storm.id}</span>
-                    <Badge
-                        bg={
-                        storm.intensity >= 8
-                            ? "danger"
-                            : storm.intensity >= 6
-                            ? "primary"
-                            : "secondary"
-                        }
-                    >
-                        {storm.intensity} dBZ
-                    </Badge>
-                    </div>
-                    <div className="text-muted small">
-                    <div>Area: {storm.area} km²</div>
-                    <div>Shape: {storm.shape}</div>
-                    <div>
-                        Center: ({storm.center.x}, {storm.center.y})
-                    </div>
-                    </div>
-                </div>
-                ))}
-            </Card.Body>
+            <Card className="h-100">
+                <Card.Header>
+                    <Card.Title>Detected Storms</Card.Title>
+                    <small className="text-muted">
+                        {storms.length} storms detected
+                    </small>
+                </Card.Header>
+                <Card.Body style={{ maxHeight: "54.5vh", overflowY: "auto" }}>
+                    {storms.map((storm) => (
+                        <div className="border rounded p-3 mb-3">
+                            <div className="d-flex mb-2 justify-content-between align-items-center2">
+                                <span className="fw-medium">{storm.id}</span>
+                                <Badge
+                                    bg={
+                                        storm.intensity >= 8
+                                            ? "danger"
+                                            : storm.intensity >= 6
+                                            ? "primary"
+                                            : "secondary"
+                                    }
+                                >
+                                    {storm.intensity} dBZ
+                                </Badge>
+                            </div>
+                            <div className="text-muted small">
+                                <div>Area: {storm.area} km²</div>
+                                <div>
+                                    {" "}
+                                    Center: ({storm.center.x}, {storm.center.y}){" "}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </Card.Body>
             </Card>
         </>
-    )
-};
+    );
+}
 
-function RadarMap(
-    {readings}
-) {
+function RadarMap({ readings }) {
+    const [selectedOptions, setSelectedOptions] = useState({
+        humidity: false,
+        rainfall: false,
+        windSpeed: false,
+        windDirection: false,
+        stormIntensity: false,
+        temperature: false
+    });
+
+    const [weatherStations, setWeatherStations] = useState([]); // arr of coords
+    const [sliderValue, setSliderValue] = useState(0); // slider will be used to select the date
+
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [playbackSpeed, setPlaybackSpeed] = useState(2); // multiplier
+    const [selectedTime, setSelectedTime] = useState(null);
+    /**
+     *
+     * Hourly = 3 days of data available
+     * Daily = 1 week of data available
+     * Monthly = 1 month of data available?
+     */
+
+    // need to make this dynamic for hourly, daily and monthly
+    const generateTimeline = (rawStart, rawEnd) => {
+        const times = [];
+        const startMs = new Date(rawStart).getTime();
+        const endMs = new Date(rawEnd).getTime();
+
+        const msPerHour = 1000 * 60 * 60;
+        const start = new Date(Math.ceil(startMs / msPerHour) * msPerHour);
+        const end = new Date(Math.floor(endMs / msPerHour) * msPerHour);
+
+        let current = new Date(start);
+
+        while (current <= end) {
+            times.push(current.toISOString());
+            current.setHours(current.getHours() + 1); //increment by 1 hour
+        }
+        return times;
+    };
+
+    // replace by selected date timeline
+    const start = "2024-09-03T11:20:32";
+    const end = "2024-09-04T15:55:32";
+
+    const timeline = generateTimeline(start, end);
+    const currentIndex = timeline.findIndex((t) => t === selectedTime);
+
+    if (selectedTime === null) setSelectedTime(timeline[0]);
+
+    useEffect(() => {
+        if (!isPlaying) return;
+
+        const interval = setInterval(() => {
+            setSelectedTime((prev) => {
+                const idx = timeline.findIndex((t) => t === prev);
+                return timeline[idx + 1] || timeline[0];
+            });
+        }, 1000 / playbackSpeed);
+
+        return () => clearInterval(interval); // clear and reset if off
+    }, [isPlaying, playbackSpeed]);
+
+    const handleSliderChange = (e) => {
+        setSelectedTime(timeline[Number(e.target.value)]);
+    };
+
+    const handleOption = (e) => {
+        const { name, checked } = e.target;
+        setSelectedOptions((prev) => ({ ...prev, [name]: checked }));
+    };
+
     return (
         <>
-            <SingaporeMap readings={readings} />
+            <Card>
+                <Card.Body>
+                    <Card.Title className="mb-4">Radar Scan</Card.Title>
+                    <Form className="mb-4">
+                        <div className="d-flex flex-wrap justify-content-start gap-2">
+                            <Form.Label>
+                                {new Date(selectedTime).toLocaleDateString()}
+                            </Form.Label>
+                            <Form.Label>
+                                {new Date(selectedTime).toLocaleTimeString()}
+                            </Form.Label>
+                        </div>
+
+                        <Form.Range
+                            min={0}
+                            max={timeline.length - 1}
+                            value={currentIndex}
+                            onChange={handleSliderChange}
+                        />
+
+                        <div className="d-flex flex-wrap justify-content-center gap-5 mb-2">
+                            <Button
+                                size="sm"
+                                variant="outline-secondary"
+                                onClick={() =>
+                                    setSelectedTime(
+                                        timeline[
+                                            (currentIndex -
+                                                1 +
+                                                timeline.length) %
+                                                timeline.length
+                                        ]
+                                    )
+                                }
+                            >
+                                <FaBackward />
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="outline-secondary"
+                                onClick={() => setIsPlaying(!isPlaying)}
+                            >
+                                {isPlaying ? <FaPause /> : <FaPlay />}
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="outline-secondary"
+                                onClick={() =>
+                                    setSelectedTime(
+                                        timeline[
+                                            (currentIndex + 1) % timeline.length
+                                        ]
+                                    )
+                                }
+                            >
+                                <FaForward />
+                            </Button>
+                        </div>
+
+                        <div className="mb-3 text-muted small">
+                            <div>Coverage: X Hours</div>
+                        </div>
+                        <div className="d-flex flex-wrap justify-content-end gap-3">
+                            <Form.Check
+                                type="checkbox"
+                                label="Humidity"
+                                name="humidity"
+                                checked={selectedOptions.humidity}
+                                onChange={handleOption}
+                            />
+                            <Form.Check
+                                type="checkbox"
+                                label="Rainfall"
+                                name="rainfall"
+                                checked={selectedOptions.rainfall}
+                                onChange={handleOption}
+                            />
+                            <Form.Check
+                                type="checkbox"
+                                label="Wind Speed"
+                                name="windSpeed"
+                                checked={selectedOptions.windSpeed}
+                                onChange={handleOption}
+                            />
+                            <Form.Check
+                                type="checkbox"
+                                label="Wind Direction"
+                                name="windDirection"
+                                checked={selectedOptions.windDirection}
+                                onChange={handleOption}
+                            />
+                            <Form.Check
+                                type="checkbox"
+                                label="Temperature"
+                                name="temperature"
+                                checked={selectedOptions.temperature}
+                                onChange={handleOption}
+                            />
+                            <Form.Check
+                                type="checkbox"
+                                label="Storm Intensity"
+                                name="stormIntensity"
+                                checked={selectedOptions.stormIntensity}
+                                onChange={handleOption}
+                            />
+                        </div>
+                    </Form>
+                    <SingaporeMap
+                        readings={readings}
+                        selectedOptions={selectedOptions}
+                    />
+                </Card.Body>
+            </Card>
         </>
     );
 }

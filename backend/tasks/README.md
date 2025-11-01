@@ -1,0 +1,1 @@
+This folder contains all the scripts used for task or jobs to populate our database tables. They have been segmented into subfolders for organisation, each with their own detailed readme.md .

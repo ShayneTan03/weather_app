@@ -5,39 +5,64 @@ import { ArrowUp, ArrowDown, Clock } from "react-bootstrap-icons";
 import Header from "./Header";
 import { MetricRow } from "./Metrics";
 import Navigation from "./Navigation";
-import fetchHumidity from "../api/fetchHumidity";
-import RadarMap, {DetectedStorms} from "./RadarMap";
+import {getMetrics} from "../api/fetchMetrics";
+import RadarMap, { DetectedStorms } from "./RadarMap";
 import Plot1 from "./Plot1";
 import Plot2 from "./Plot2";
 import Plot3 from "./Plot3";
 import StormFeatureAnalysis from "./FeatureAnalysis";
 import GlobalDateRangePicker from "./DateRange";
+import {fetchWeatherObservations, fetchWeatherStations} from "../api/fetchApi";
+import { useMemo } from "react";
 
 function Dashboard() {
-    const [activeView, setActiveView] = useState("Storm Map"); 
-    const [mapView, setMapView] = useState("map"); // Default => show Map view
-    const [analysisTimeframe, setAnalysisTimeframe] = useState("Daily"); // default toggle
-    const [readings, setReadings] = useState(null);
+    const [activeView, setActiveView] = useState("map");
+
+    /**
+     * set date range here to determine what filter to use on the readingss
+     */
+    const [dateRange, setDateRange] = useState({
+        start: new Date("2025-05-01T00:00:00Z"),
+        end: new Date("2025-10-31T23:59:59Z")
+    });
+
+    /**
+     * state for date range picker and passing to feature analysis component (stormSummary~stormEventLog)
+     */
     const [range, setRange] = useState([
         { startDate : new Date(), endDate : new Date(), key : "selection"}
     ]); // default time range
-
+    
     const [stormSummaryData, setStormSummaryData] = useState([]);
     const [selectedStormId, setSelectedStormId] = useState(null);
     const [stormEventLogData, setStormEventLogData] = useState(null);
 
+    const [readings, setReadings] = useState(null);
     // any asynchronous logic should be handled within useEffect with a nested fn
     // this will load the necessary data before loading the components of the web page
     useEffect(() => {
         async function loadData() {
             try {
-                const [stationsArr, readingData] = await fetchHumidity(
-                    "2025-10-15"
-                );
-                const readingMap = stationsArr.map((station) => ({
-                    ...station, //takes the existing kv pairs
-                    humidity: readingData[station.id] ?? "NA",
-                }));
+                const observations = await fetchWeatherObservations();
+                const stations = await fetchWeatherStations();
+                const metrics = getMetrics(observations, dateRange);
+
+                /**
+                 * fetch all metrics here
+                 */
+
+                const readingMap = stations.map((station) => {
+                    const stationMetrics = metrics[station.station_id] || {};
+
+                    return {
+                        ...station, // include existing station fields
+                        humidity: stationMetrics.humidity_pct ?? null,
+                        rainfall: stationMetrics.rainfall_mm ?? null,
+                        wind_speed: stationMetrics.wind_speed_knots ?? null,
+                        wind_direction: stationMetrics.wind_direction_degrees ?? null,
+                        temperature: stationMetrics.temperature_c ?? null,
+                    };
+                });
 
                 setReadings(readingMap);
             } catch (err) {
@@ -87,27 +112,27 @@ function Dashboard() {
     ];
     //data for plot1
     const Data1 = [
-    {
-        stormId: "STORM_A",
-        points: [
-        { timestamp: "2025-10-20T00:00Z", rainfall: 1.5, size: 60 },
-        { timestamp: "2025-10-20T01:00Z", rainfall: 6.2, size: 140 },
-        { timestamp: "2025-10-20T02:00Z", rainfall: 4.0, size: 100 },
-        { timestamp: "2025-10-20T03:00Z", rainfall: 2.1, size: 70 },
-        { timestamp: "2025-10-20T04:00Z", rainfall: 7.3, size: 150 },
-        { timestamp: "2025-10-20T05:00Z", rainfall: 3.2, size: 90 },
-        ],
-    },
-    {
-        stormId: "STORM_B",
-        points: [
-        { timestamp: "2025-10-20T02:00Z", rainfall: 2.5, size: 50 },
-        { timestamp: "2025-10-20T03:00Z", rainfall: 8.1, size: 180 },
-        { timestamp: "2025-10-20T04:00Z", rainfall: 12.3, size: 240 },
-        { timestamp: "2025-10-20T05:00Z", rainfall: 5.0, size: 110 },
-        { timestamp: "2025-10-20T06:00Z", rainfall: 3.8, size: 90 },
-        ],
-    },
+        {
+            stormId: "STORM_A",
+            points: [
+                { timestamp: "2025-10-20T00:00Z", rainfall: 1.5, size: 60 },
+                { timestamp: "2025-10-20T01:00Z", rainfall: 6.2, size: 140 },
+                { timestamp: "2025-10-20T02:00Z", rainfall: 4.0, size: 100 },
+                { timestamp: "2025-10-20T03:00Z", rainfall: 2.1, size: 70 },
+                { timestamp: "2025-10-20T04:00Z", rainfall: 7.3, size: 150 },
+                { timestamp: "2025-10-20T05:00Z", rainfall: 3.2, size: 90 },
+            ],
+        },
+        {
+            stormId: "STORM_B",
+            points: [
+                { timestamp: "2025-10-20T02:00Z", rainfall: 2.5, size: 50 },
+                { timestamp: "2025-10-20T03:00Z", rainfall: 8.1, size: 180 },
+                { timestamp: "2025-10-20T04:00Z", rainfall: 12.3, size: 240 },
+                { timestamp: "2025-10-20T05:00Z", rainfall: 5.0, size: 110 },
+                { timestamp: "2025-10-20T06:00Z", rainfall: 3.8, size: 90 },
+            ],
+        },
     ];
     // data for plot2 (each storm is a single averaged point)
     const Data2 = [
@@ -155,9 +180,6 @@ function Dashboard() {
         avgDistance: avg(historical2022, "avgDistance"),
     };
 
-    const calculateChange = (recent, historical) =>
-        ((recent - historical) / historical) * 100;
-
     const stormClassification = [
         { name: "Light (<5 dBZ)", value: 35, color: "#22c55e" },
         { name: "Moderate (5–7 dBZ)", value: 40, color: "#eab308" },
@@ -185,18 +207,51 @@ function Dashboard() {
         hole: 0.5,
     };
 
-    const start = range[0].startDate;
-    const end = range[0].endDate;    
+    const metrics = useMemo(() => {
+        if (!readings) return [];
+        const temperatureArr = readings.map(r => r.temperature);
+        const rainfallArr = readings.map(r => r.rainfall);
+        const humidityArr = readings.map(r => r.humidity);
+        const windSpeedArr = readings.map(r => r.wind_speed)
+        return [
+            {
+                title: "Temperature",
+                reading: temperatureArr,
+                icon: <ArrowDown className="text-danger" />,
+                unit: "°C",
+            },
+            {
+                title: "Rainfall",
+                reading: rainfallArr,
+                icon: <ArrowDown className="text-danger" />,
+                unit: "mm",
+            },
+            {
+                title: "Humidity",
+                reading: humidityArr,
+                icon: <ArrowDown className="text-danger" />,
+                unit: "mm",
+            },
+            {
+                title: "Wind Speed",
+                reading: windSpeedArr,
+                icon: <ArrowDown className="text-danger" />,
+                unit: "mm",
+            },
+        ];
+    }, [readings, dateRange]);
 
-    // feed required data into map
 
     return (
         <Container fluid className="py-4">
             <Header
-                analysisTimeframe={analysisTimeframe}
-                setAnalysisTimeframe={setAnalysisTimeframe}
-                title="Storm Tracker Dashboard"
-                subtitle="Track storms over different intervals"
+                className="header-large"
+                title={<span className="h2">Storm Tracker Dashboard</span>}
+                subtitle={
+                    <span className="h5">
+                        Track storms over different intervals
+                    </span>
+                }
             />
 
             {/* Show Date Range Picker above navigation bar*/}
@@ -206,93 +261,20 @@ function Dashboard() {
                 <Navigation
                 activeView = {activeView}
                 setActiveView = {setActiveView}
-                buttonArr={["Storm Map", "Feature Analysis"]}
+                buttonArr={["map", "plot"]}
                 />
             </div>
             <div className="mt-4"> 
-                {activeView === 'Storm Map' && (
+                {activeView === 'map' && (
                     <>
-                        <Form.Select 
-                        value={analysisTimeframe} 
-                        onChange={(e) => setAnalysisTimeframe(e.target.value)}
-                        style={{ width: '120px', height: '32px', fontSize: '0.9rem' }}>
-
-                            <option value="hourly">Daily</option>
-                            <option value="daily">Weekly</option>
-                            <option value="monthly">Monthly</option>
-
-                        </Form.Select>
-                        <MetricRow
-                            metrics={[
-                                {
-                                    title: "Frequency",
-                                    change: calculateChange(
-                                        avgRecent.stormCount,
-                                        avgHistorical.stormCount
-                                    ),
-                                    icon: <ArrowDown className="text-danger" />,
-                                    unit: "storms/month",
-                                    recent: avgRecent.stormCount,
-                                    historical: avgHistorical.stormCount,
-                                },
-                                {
-                                    title: "Duration",
-                                    change: calculateChange(
-                                        avgRecent.avgDuration,
-                                        avgHistorical.avgDuration
-                                    ),
-                                    icon: <Clock className="text-primary" />,
-                                    unit: "min avg",
-                                    recent: avgRecent.avgDuration,
-                                    historical: avgHistorical.avgDuration,
-                                },
-                                {
-                                    title: "Size",
-                                    change: calculateChange(
-                                        avgRecent.avgArea,
-                                        avgHistorical.avgArea
-                                    ),
-                                    unit: "km squared avg",
-                                    recent: avgRecent.avgArea,
-                                    historical: avgHistorical.avgArea,
-                                },
-                                {
-                                    title: "Distance",
-                                    change: calculateChange(
-                                        avgRecent.avgDistance,
-                                        avgHistorical.avgDistance
-                                    ),
-                                    icon: <ArrowUp className="text-warning" />,
-                                    unit: "km avg",
-                                    recent: avgRecent.avgDistance,
-                                    historical: avgHistorical.avgDistance,
-                                },
-                            ]}
-                        />
+                        <MetricRow metrics={metrics} />
                         <Row className="justify-content-center mb-4 mt-5">
                             <Col xs={12} md={8}>
-                                <Card>
-                                    <Card.Body>
-                                        <Card.Title className="mb-2">Radar Map</Card.Title>
-                                            <div className="my-4 mb-5">
-                                                <Navigation
-                                                    activeView={mapView}
-                                                    setActiveView={setMapView}
-                                                    buttonArr={["map","x", "y", "z"]}
-                                                />
-                                            </div>
-                                        {mapView === "map" && (
-                                            <RadarMap readings={readings} />
-                                        )}
-                                        {mapView === "x" && <p>x</p>}
-                                        {mapView === "y" && <p>y</p>}
-                                        {mapView === "z" && <p>z</p>}
-                                    </Card.Body>
-                                </Card>
+                                <RadarMap readings={readings} />
                             </Col>
                             <Col xs={12} md={4}>
                                 <div>
-                                <DetectedStorms readings={readings}/>
+                                    <DetectedStorms readings={readings} />
                                 </div>
                             </Col>
                         </Row>
@@ -303,18 +285,18 @@ function Dashboard() {
             </div>
 
             <div className="mt-4">
-            {activeView === 'Feature Analysis' && (
+            {activeView === 'plot' && (
                 <Col>
 
                 <Row className="g-4"> 
                         {/* Display Feature Analysis */}
                         {<StormFeatureAnalysis Data1={Data1} />}
                         {/* Wrap the Plot1 with Col and Card for cleaner layout */}
-                        <Col xs={12}> 
+                        <Col xs={12}>
                             <Card>
                                 <Card.Body>
                                     {/* Display Plot1 */}
-                                    <Plot1 Data1 = {Data1} />
+                                    <Plot1 Data1={Data1} />
                                 </Card.Body>
                             </Card>
                         </Col>
