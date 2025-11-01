@@ -1,4 +1,4 @@
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
 async function request(path, opts = {}) {
   const controller = new AbortController();
@@ -57,6 +57,7 @@ export async function getWeatherStationById(station_id) {
 // Weather Observations
 export async function getWeatherObs(params = {}) {
   const qs = new URLSearchParams(params).toString();
+  console.log(qs)
   const p = await request(`/list/weatherobs${qs ? `?${qs}` : ""}`);
   return unwrap(p);
 }

@@ -6,8 +6,6 @@ const labelMap = [
 ];
 
 function Navigation({activeView, setActiveView, buttonArr}) {
-    console.log(activeView)
-    console.log(buttonArr)
     return (
         <ButtonGroup className = 'w-100'>
             {buttonArr.map((name) => {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import Plot from "react-plotly.js";
-import { Container, Row, Col, Card, Form } from "react-bootstrap";
-import { ArrowUp, ArrowDown, Clock } from "react-bootstrap-icons";
+import { Container, Row, Col, Card } from "react-bootstrap";
+import {ArrowDown } from "react-bootstrap-icons";
 import Header from "./Header";
 import { MetricRow } from "./Metrics";
 import Navigation from "./Navigation";
@@ -44,6 +44,8 @@ function Dashboard() {
             try {
                 // Fetch actual weather observations and stations from the API
                 const observations = await getWeatherObs();
+
+                console.log(observations);
                 const stations = await getWeatherStations();
 
                 // Calculate metrics using the fetched data and current dateRange
