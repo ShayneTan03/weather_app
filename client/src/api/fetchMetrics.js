@@ -3,6 +3,7 @@ function getMetrics(data, dateRange) {
   const { start, end } = dateRange;
   const obsMap = {};
 
+
   for (let i = 0; i < data.length; i++) {
     const reading = data[i];
     const ts = new Date(reading.timestamp);

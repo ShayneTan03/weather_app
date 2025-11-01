@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Plot from "react-plotly.js";             
 import { DateRange } from "react-date-range";
 import { enUS } from "date-fns/locale";

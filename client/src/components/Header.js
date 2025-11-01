@@ -1,8 +1,6 @@
-import {Card, Form} from "react-bootstrap";
+import {Card} from "react-bootstrap";
 
 function Header({
-    analysisTimeframe,
-    setAnalysisTimeframe,
     title,
     subtitle,
 }) {

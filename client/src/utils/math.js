@@ -1,8 +1,9 @@
 // math.js
-/*
- * analysisTimeframe = Timeframe for data to be aggregated
+/**
+ * 
+ * @param {Obj} reading 
+ * @returns {Obj} 
  */
-
 export function isStormCandidate(reading) {
     const MIN_HUMIDITY = 70;
     const MIN_AREA = 20;
@@ -25,4 +26,21 @@ export function getAverage(values) {
     }
 
     return count > 0 ? sum / count : 0;
+}
+
+/**
+ * 
+ * @param {Date} start - The start time of the storm
+ * @param {Date} end - The end time of the storm 
+ * @returns {{ hours: int, minutes: int, seconds: int }}
+ */
+export function getDuration({start, end}) {
+    const minute = 1000 * 60;
+    const hour = minute * 60;
+    const durationMs = end - start // in milliseconds
+    const hours = Math.floor(durationMs / hour);
+    const minutes = Math.floor((durationMs % hour)/minute);
+    const seconds = Math.floor((durationMs % minute) /1000)
+
+    return {hours, minutes, seconds};
 }
