@@ -12,6 +12,7 @@ function SingaporeMap({ readings, selectedOptions }) {
         return <div>Loading radar data...</div>;
     }
 
+    console.log(readings);
     return (
         <div id="map-container">
             <MapContainer
@@ -28,7 +29,7 @@ function SingaporeMap({ readings, selectedOptions }) {
 
                 {/* Station markers */}
                 {readings.map((r) => (
-                    <Marker key={r.station_id} position={[r.lat, r.lon]}>
+                    <Marker key={r.station_id} position={[r.latitude, r.longitude]}>
                         <Popup>
                             <strong>{r.name}</strong>
                             {MAP_POINTERS.map(
@@ -55,7 +56,7 @@ function SingaporeMap({ readings, selectedOptions }) {
                               return (
                                   <Circle
                                       key={`${v.key}-${r.station_id}`}
-                                      center={[r.lat, r.lon]}
+                                      center={[r.latitude, r.longitude]}
                                       radius={value * v.scale}
                                       fillColor={v.color}
                                       fillOpacity={0.3}

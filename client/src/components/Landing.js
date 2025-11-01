@@ -45,11 +45,11 @@ function Dashboard() {
                 // Fetch actual weather observations and stations from the API
                 const observations = await getWeatherObs();
 
-                console.log(observations);
                 const stations = await getWeatherStations();
 
                 // Calculate metrics using the fetched data and current dateRange
                 const metrics = getMetrics(observations, dateRange);
+
 
                 // Map stations to readings with metrics
                 const readingMap = stations.map((station) => {
