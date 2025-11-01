@@ -119,33 +119,3 @@ export async function getStormsAtTimestamp(params = {}) {
   return unwrap(p);
 }
 
-// Client-side formatted data exports
-export async function getPlot1Data(params = {}) {
-  const qs = new URLSearchParams(params).toString();
-  const p = await request(`/export/plot1${qs ? `?${qs}` : ""}`);
-  return unwrap(p);
-}
-
-export async function getPlot2Data(params = {}) {
-  const qs = new URLSearchParams(params).toString();
-  const p = await request(`/export/plot2${qs ? `?${qs}` : ""}`);
-  return unwrap(p);
-}
-
-export async function getPlot3Data(params = {}) {
-  const qs = new URLSearchParams(params).toString();
-  const p = await request(`/export/plot3${qs ? `?${qs}` : ""}`);
-  return unwrap(p);
-}
-
-export async function getRadarMapData(params = {}) {
-  const qs = new URLSearchParams(params).toString();
-  const p = await request(`/export/radarmap${qs ? `?${qs}` : ""}`);
-  return unwrap(p);
-}
-
-export async function getClientReadings(params = {}) {
-  const qs = new URLSearchParams(params).toString();
-  const p = await request(`/export/client_readings${qs ? `?${qs}` : ""}`);
-  return unwrap(p);
-}
