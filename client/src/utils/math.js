@@ -59,3 +59,31 @@ export function formatTimestamp(date) {
 
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
+
+
+export function toISODate(d) {
+    if (!d) return ''; // handle error case
+    const z = new Date(d);
+    const y = z.getFullYear();
+    const m = String(z.getMonth() + 1).padStart(2, "0");
+    const day = String(z.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+}
+
+export const generateTimeline = (rawStart, rawEnd) => {
+    const times = [];
+    const startMs = new Date(rawStart).getTime();
+    const endMs = new Date(rawEnd).getTime();
+
+    const msPerHour = 1000 * 60 * 60;
+    const start = new Date(Math.ceil(startMs / msPerHour) * msPerHour);
+    const end = new Date(Math.floor(endMs / msPerHour) * msPerHour);
+
+    let current = new Date(start);
+
+    while (current <= end) {
+        times.push(current.toISOString());
+        current.setHours(current.getHours() + 1); //increment by 1 hour
+    }
+    return times;
+};

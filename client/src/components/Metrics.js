@@ -29,9 +29,6 @@ function MetricCard({title, metric, icon, unit }) {
     );
 }
 
-export default MetricCard;
-
-
 export function MetricRow({ metrics }) {
     return (
         <Row className="g-4 mb-4">
@@ -47,3 +44,6 @@ export function MetricRow({ metrics }) {
         </Row>
     );
 }
+
+
+export default MetricCard;

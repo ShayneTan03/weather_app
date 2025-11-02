@@ -2,7 +2,8 @@ const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
 async function request(path, opts = {}) {
   const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), opts.timeout || 30000);
+  // Increased timeout to 120 seconds for large date ranges
+  const id = setTimeout(() => controller.abort(), opts.timeout || 120000);
   try {
     const res = await fetch(API_BASE + path, {
       method: opts.method || "GET",
@@ -53,5 +54,12 @@ export async function getPlot2Data(params = {}) {
     const qs = new URLSearchParams(params).toString();
     console.log(qs);
     const p = await request(`/join/plot2${qs ? `?${qs}` : ""}`);
+    return unwrap(p);
+}
+
+// Plot3
+export async function getPlot3Data(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    const p = await request(`/join/plot3${qs ? `?${qs}` : ""}`);
     return unwrap(p);
 }
