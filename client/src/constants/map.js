@@ -29,7 +29,6 @@ export const getMapPointers = (displays) => [
     {
         key: "wind_direction",
         display: displays.windDirection,
-        color: "orange",
         scale: 15,
         label: "Wind Direction",
         unit: "°",
