@@ -88,6 +88,9 @@ function Dashboard() {
 
         if (!startDate || !endDate) return; // do nothing if dates are invalid
 
+        const endOfDay = new Date(endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+
         const loadPlotData = async () => {
             setApiLoading(true);
             setApiError(null);
@@ -95,7 +98,7 @@ function Dashboard() {
             // parameters for API call
             const params = {
                 start: startDate.toISOString(),
-                end: endDate.toISOString(),
+                end: endOfDay.toISOString(),
             };
 
             try {
@@ -148,9 +151,14 @@ function Dashboard() {
 
                 const stations = await getWeatherStations();
 
-                // Calculate metrics using the fetched data and current dateRange
-                const metrics = getMetrics(observations, dateRange);
+                // Use global date range picker values
+                const { startDate, endDate } = range[0];
+                const endOfDay = new Date(endDate);
+                endOfDay.setHours(23, 59, 59, 999);
 
+                // Calculate metrics using the fetched data and current dateRange
+                // const metrics = getMetrics(observations, dateRange);
+                const metrics = getMetrics(observations, {start: startDate, end: endOfDay});
 
                 // Map stations to readings with metrics
                 const readingMap = stations.map((station) => {
@@ -166,17 +174,19 @@ function Dashboard() {
                     };
                 });
 
-                setReadings(readingMap);
+                setReadings(readingMap); // Renew state with new readings
             } catch (err) {
                 console.error(err.message);
             }
         }
         loadData();
-    }, []);
+    }, [range]); // Runs whenever date range changes
     // react checks if the values in the arr of dependencies changes
     // reruns if there's any change
     // if empty arr it runs once
     // otherwise i.e [date] it runs whenever the date changes
+    
+
 
     const trendData = [
         {
@@ -390,7 +400,7 @@ function Dashboard() {
                         <MetricRow metrics={metrics} />
                         <Row className="justify-content-center mb-4 mt-5">
                             <Col xs={12} md={8}>
-                                <RadarMap readings={readings} />
+                                <RadarMap readings={readings} range={range} />
                             </Col>
                             <Col xs={12} md={4}>
                                 <div>
