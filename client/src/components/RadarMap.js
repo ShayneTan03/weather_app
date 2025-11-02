@@ -13,29 +13,8 @@ import { FaPlay, FaPause, FaForward, FaBackward } from "react-icons/fa";
 import { getMapPointers, singaporeCoords } from "../constants/map";
 import { isStormCandidate } from "../utils/math";
 import { getStormsAtTimestamp } from "../api/fetchApi";
-import { formatTimestamp, generateTimeline } from "../utils/math";
-
+import { formatTimestamp, generateTimeline, getColorForValue, getDbzColor } from "../utils/math";
 import L from "leaflet";
-
-function createArrowIcon(angle) {
-    return L.divIcon({
-        className: "wind-arrow",
-        html: `<div style="
-            transform: rotate(${angle}deg);
-            font-size: 16px;
-            line-height: 0;
-        ">↑</div>`,
-        iconSize: [20, 20],
-        iconAnchor: [10, 10], // center the arrow
-    });
-}
-
-// helper to color code dBZ intensity
-function getDbzColor(dbz) {
-    if (dbz >= 50) return "red";
-    if (dbz >= 20) return "orange";
-    return "blue";
-}
 
 const singaporeBounds = {
     north: 1.47, // northernmost latitude
@@ -212,8 +191,34 @@ function SingaporeMap({ readings, selectedOptions, selectedTime }) {
         return <div>Loading radar data...</div>;
     }
 
+    // Color ranges for different metrics (light -> dark)
+    const COLOR_RANGES = {
+        humidity: ["#f7fbff", "#08306b"],
+        rainfall: ["#fff5f0", "#67000d"],
+        windSpeed: ["#ffffe5", "#d95f0e"],
+        temperature: ["#ffffcc", "#800026"],
+        stormIntensity: ["#fff5f0", "#b30000"],
+        // fallback
+        default: ["#eeeeee", "#444444"],
+    };
+
+    // compute min/max/avg for each pointer
+    // mark whether this pointer uses a color gradient (wind_direction doesn't)
+    const pointerStats = MAP_POINTERS.map((v) => {
+        const isGradient = v.key !== "wind_direction";
+        const vals = readings.map((r) => {
+            const n = Number(r[v.key]);
+            return Number.isFinite(n) ? n : 0;
+        });
+        const min = vals.length ? Math.min(...vals) : 0;
+        const max = vals.length ? Math.max(...vals) : 0;
+        const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+        const colors = isGradient ? (COLOR_RANGES[v.key] || COLOR_RANGES.default) : null;
+        return { ...v, min, max, avg, colors, isGradient };
+    });
+
     return (
-        <div id="map-container">
+        <div id="map-container" style={{ position: "relative" }}>
             <MapContainer
                 center={singaporeCoords}
                 zoom={12}
@@ -248,8 +253,8 @@ function SingaporeMap({ readings, selectedOptions, selectedTime }) {
                     </Marker>
                 ))}
 
-                {/* Humidity or metric circles */}
-                {MAP_POINTERS.map((v) =>
+                {/* Humidity or metric circles with color gradient based on min/max/avg */}
+                {pointerStats.map((v) =>
                     v.display
                         ? readings.map((r) => {
                               const safeVal = Number.isFinite(Number(r[v.key]))
@@ -257,7 +262,7 @@ function SingaporeMap({ readings, selectedOptions, selectedTime }) {
                                   : 0;
 
                               if (v.key === "wind_direction") {
-                                  // render arrow for wind direction
+                                  // render arrow for wind direction (keep original styling)
                                   const angle = safeVal; // wind direction in degrees
                                   const arrowIcon = L.divIcon({
                                       className: "wind-arrow",
@@ -280,14 +285,21 @@ function SingaporeMap({ readings, selectedOptions, selectedTime }) {
                                   );
                               }
 
+                              const fillColor = getColorForValue(
+                                  safeVal,
+                                  v.min,
+                                  v.max,
+                                  v.colors
+                              );
+
                               // render circle for other metrics
                               return (
                                   <Circle
                                       key={`${v.key}-${r.station_id}`}
                                       center={[r.latitude, r.longitude]}
                                       radius={safeVal * v.scale}
-                                      fillColor={v.color}
-                                      fillOpacity={0.3}
+                                      fillColor={fillColor}
+                                      fillOpacity={0.75}
                                       stroke={false}
                                   />
                               );
@@ -299,6 +311,70 @@ function SingaporeMap({ readings, selectedOptions, selectedTime }) {
                     <RadarOverlay selectedTime={selectedTime} />
                 )}
             </MapContainer>
+
+                {/* Legend overlay: show gradient per active metric (min / avg / max) */}
+                <div
+                    className="radar-legend"
+                    style={{
+                        position: "absolute",
+                        top: 8,
+                        right: 8,
+                        zIndex: 1000,
+                        width: 220,
+                        maxHeight: "60vh",
+                        overflowY: "auto",
+                        background: "rgba(255,255,255,0.95)",
+                        padding: 8,
+                        borderRadius: 6,
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                    }}
+                >
+                    {pointerStats
+                        .filter((p) => p.display)
+                        .map((p) => {
+                            // if this pointer is non-gradient (e.g. wind_direction), show a simple legend entry
+                            if (!p.isGradient) {
+                                return (
+                                    <div key={`legend-${p.key}`} style={{ marginBottom: 8 }}>
+                                        <div style={{ fontSize: 12, fontWeight: 600 }}>{p.label}</div>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                                            <div style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff", borderRadius: 4, border: "1px solid #ddd" }}>
+                                                {/* simple arrow example */}
+                                                <div style={{ transform: "rotate(0deg)", fontSize: 16 }}>↑</div>
+                                            </div>
+                                            <div style={{ fontSize: 12, color: "#444" }}>Direction (arrows on map)</div>
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            const min = p.min;
+                            const max = p.max;
+                            const avg = p.avg;
+                            const colors = p.colors || ["#eee", "#444"];
+                            const range = max - min === 0 ? 1 : max - min;
+                            const avgPct = Math.max(0, Math.min(100, Math.round(((avg - min) / range) * 100)));
+
+                            // format numbers with one decimal and show unit when present
+                            const fmt = (n) => Number(n).toFixed(1);
+                            const unitLabel = p.unit ? ` ${p.unit}` : "";
+
+                            return (
+                                <div key={`legend-${p.key}`} style={{ marginBottom: 8 }}>
+                                    <div style={{ fontSize: 12, fontWeight: 600 }}>{p.label}{unitLabel}</div>
+                                    <div style={{ position: "relative", height: 16, borderRadius: 4, overflow: "hidden", background: "#eee" }}>
+                                        <div style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, background: `linear-gradient(to right, ${colors[0]}, ${colors[1]})` }} />
+                                        <div title={`avg: ${avg.toFixed(2)}`} style={{ position: "absolute", left: `${avgPct}%`, top: 0, bottom: 0, width: 2, background: "rgba(0,0,0,0.6)", transform: "translateX(-50%)" }} />
+                                    </div>
+                                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#444" }}>
+                                        <div>{fmt(min)}{unitLabel}</div>
+                                        <div>{fmt(avg)}{unitLabel}</div>
+                                        <div>{fmt(max)}{unitLabel}</div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                </div>
         </div>
     );
 }
