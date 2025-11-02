@@ -118,7 +118,7 @@ function FeatureRow({features}) {
 /**
  * Actual Component for Storm Feature Analysis
  */
-function StormFeatureAnalysis({storms}) {
+function StormFeatureAnalysis({storms, plot1Data}) {
     console.log(storms);
     
     // Initialize state FIRST (before any returns)
@@ -128,7 +128,7 @@ function StormFeatureAnalysis({storms}) {
     
     // Handler for changing the selected storm ID
     const handleStormChange = (event) => {
-        setSelectedStormID(event.target.value);
+        setSelectedStormID(Number(event.target.value));
     };
     
     // Early return if no data (AFTER all hooks)
@@ -145,6 +145,14 @@ function StormFeatureAnalysis({storms}) {
     const selectedStorm = storms.find(
         (storm) => storm.storm_id === selectedStormID
     );
+
+    // Find the log data for the selected storm ID from plot1Data
+
+    // FeatureAnalysis.js (155行目) を修正 [cite: FeatureAnalysis.js]
+    const selectedStormLog = plot1Data?.find(s => s.stormId === selectedStormID)?.points || [];
+    // const selectedStormLog = plot1Data
+    //     ? plot1Data.find(s => s.stormId === selectedStormID)?.points 
+    //     : [];
 
     // Retrieve points array from the selected storm
     // const pointsToAnalyze = selectedStormData ? selectedStormData.points : null;
@@ -165,7 +173,7 @@ function StormFeatureAnalysis({storms}) {
         {
             title: "Average Size",
             value: averageSize,
-            unit: "km2",
+            unit: "km²",
         },
     ]
 
@@ -210,10 +218,18 @@ function StormFeatureAnalysis({storms}) {
             <Card>
                 <Card.Body>
                     <Card.Title>Storm Feature Analysis</Card.Title>
+
+                    <Card.Subtitle className="mb-3 text-muted">
+                        Averages for all storms in selected range
+                    </Card.Subtitle>
+
                     {storms && <FeatureRow features = {avgFeaturesArray} />}
+
+                    <h5 className="mt-4 mb-3">Individual Storm Features</h5>
+
                     {/* Dropdown to select storm ID */}
                     <Form.Group controlID = 'stormSelet' className = 'mb-3'>
-                        <Form.Label>Select Storm ID:</Form.Label>
+                        <Form.Label style={{ fontSize: '1.1rem' }}>Select Storm ID:</Form.Label>
                         <Form.Select
                             value = {selectedStormID}
                             onChange = {handleStormChange}
@@ -253,14 +269,12 @@ function StormFeatureAnalysis({storms}) {
                         </CSVLink>
 
                         <CSVLink
-                            data={ [] } // Empty data for now
+                            data={ selectedStormLog } // Empty data for now
                             headers={[ // Define headers after API is connected
                                 { label: "Timestamp", key: "timestamp" },
-                                { label: "Centroid X", key: "centroid_x" },
-                                { label: "Centroid Y", key: "centroid_y" },
-                                { label: "Peak Intensity (dBZ)", key: "peak_dBZ" },
-                                { label: "Area (px)", key: "area_px" },
-                                { label: "Rainfall (mm)", key: "rainfall_mm" }
+                                { label: "Wind Speed", key: "windspeed" },
+                                { label: "Size (px)", key: "size" },
+                                { label: "Rainfall (mm)", key: "rainfall" }
                             ]}
                             filename={
                                 selectedStormID ? // set the filename based on selected storm ID
@@ -270,30 +284,16 @@ function StormFeatureAnalysis({storms}) {
                             style = {{ textDecoration: 'none' }}
                             // Disable the link for now
                             // deleted the 'disabled' prop and added onClick handler to show alert
-                            onClick={(e) => { 
-                                alert("This feature will be enabled when API is connected.");
-                                e.preventDefault(); 
-                            }}
+                            // onClick={(e) => { 
+                            //     alert("This feature will be enabled when API is connected.");
+                            //     e.preventDefault(); 
+                            // }}
                         >
                             <Button variant="outline-secondary">
                                 Export Log (Selected Storm) to CSV
                             </Button>
                         </CSVLink>
                     </div>
-
-                    {/* Storm Trajectory Map*/}
-                    <Card className="mt-4">
-                        <Card.Header>Storm Trajectory Map</Card.Header>
-                        <Card.Body style = {{ height: '300px', backgroundColor: '#f8f9fa' }}>
-                            <Placeholder as="div" animation="glow" style={{ height: '100%' }}>
-                                <Placeholder xs={12} style={{ height: '100%', borderRadius: '0.375rem',
-                                                            display: 'flex', alignItems: 'center',
-                                                            justifyContent: 'center', color: '#6c757d' }}>
-                                    Map rendering area (API 2 data will be used here)
-                                </Placeholder>
-                            </Placeholder>
-                        </Card.Body>
-                    </Card>
 
                 </Card.Body>
             </Card>

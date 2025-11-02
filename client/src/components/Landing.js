@@ -51,6 +51,47 @@ function Dashboard() {
     const [apiLoading, setApiLoading] = useState(false);
     const [apiError, setApiError] = useState(null);
 
+
+//     const Data3 = [
+//     {
+//         "storm_id": "STORM-A-2025",
+//         "start_time": "2025-10-28T10:00:00Z",
+//         "end_time": "2025-10-28T12:30:00Z",
+//         "duration": 150.0,
+//         "avg_area": 150.5,
+//         "max_area": 300.0,
+//         "avg_dbz": 40.2,
+//         "max_dbz": 55.0,
+//         "total_distance_traveled": 25.5
+//     },
+//     {
+//         "storm_id": "STORM-B-2025",
+//         "start_time": "2025-10-28T14:00:00Z",
+//         "end_time": "2025-10-28T15:30:00Z",
+//         "duration": 90.0,
+//         "avg_area": 120.0,
+//         "max_area": 250.0,
+//         "avg_dbz": 38.0,
+//         "max_dbz": 50.0,
+//         "total_distance_traveled": 15.0
+//     },
+//     {
+//         "storm_id": "STORM-C-2025",
+//         "start_time": "2025-10-28T18:00:00Z",
+//         "end_time": "2025-10-28T18:45:00Z",
+//         "duration": 45.0,
+//         "avg_area": 80.2,
+//         "max_area": 110.0,
+//         "avg_dbz": 35.5,
+//         "max_dbz": 48.0,
+//         "total_distance_traveled": 8.2
+//     }
+// ];
+
+
+
+
+
     /**
      * API CALL HERE
      * fetch storm data whenever date range changes
@@ -314,8 +355,7 @@ function Dashboard() {
                                 </div>
                             )}
                             {/* Display Feature Analysis */}
-                            {/* Replace Data3 with actual StormData when API is ready */}
-                            {/* <StormFeatureAnalysis storms={storms} /> */}
+                            {plot3Data && <StormFeatureAnalysis storms={plot3Data} plot1Data={plot1Data} />}
 
                             {/* Wrap the Plot1 with Col and Card for cleaner layout */}
                             <Col xs={12}>
