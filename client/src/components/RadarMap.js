@@ -5,7 +5,7 @@ import {
     Popup,
     Circle,
     Tooltip,
-    Polyline
+    Polyline,
 } from "react-leaflet";
 import { useState, useEffect } from "react";
 import { Card, Badge, Form, Button } from "react-bootstrap";
@@ -14,6 +14,21 @@ import { getMapPointers, singaporeCoords } from "../constants/map";
 import { isStormCandidate } from "../utils/math";
 import { getStormsAtTimestamp } from "../api/fetchApi";
 import { formatTimestamp, generateTimeline } from "../utils/math";
+
+import L from "leaflet";
+
+function createArrowIcon(angle) {
+    return L.divIcon({
+        className: "wind-arrow",
+        html: `<div style="
+            transform: rotate(${angle}deg);
+            font-size: 16px;
+            line-height: 0;
+        ">↑</div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10], // center the arrow
+    });
+}
 
 // helper to color code dBZ intensity
 function getDbzColor(dbz) {
@@ -240,6 +255,32 @@ function SingaporeMap({ readings, selectedOptions, selectedTime }) {
                               const safeVal = Number.isFinite(Number(r[v.key]))
                                   ? Number(r[v.key])
                                   : 0;
+
+                              if (v.key === "wind_direction") {
+                                  // render arrow for wind direction
+                                  const angle = safeVal; // wind direction in degrees
+                                  const arrowIcon = L.divIcon({
+                                      className: "wind-arrow",
+                                      html: `<div style="transform: rotate(${angle}deg); font-size: 30px; line-height:0;">↑</div>`,
+                                      iconSize: [20, 20],
+                                      iconAnchor: [10, 10],
+                                  });
+
+                                  return (
+                                      <Marker
+                                          key={`${v.key}-${r.station_id}`}
+                                          position={[r.latitude, r.longitude]}
+                                          icon={arrowIcon}
+                                      >
+                                          <Popup>
+                                              {r.name} <br />
+                                              Wind Direction: {angle}°
+                                          </Popup>
+                                      </Marker>
+                                  );
+                              }
+
+                              // render circle for other metrics
                               return (
                                   <Circle
                                       key={`${v.key}-${r.station_id}`}
@@ -479,7 +520,24 @@ function RadarMap({ readings, range }) {
                         </div>
 
                         <div className="mb-3 text-muted small">
-                            <div>Coverage: X Hours</div>
+                            {range &&
+                                range[0] &&
+                                range[0].startDate &&
+                                range[0].endDate && (
+                                    <div>
+                                        Coverage:{" "}
+                                        {Math.round(
+                                            (new Date(
+                                                range[0].endDate
+                                            ).getTime() -
+                                                new Date(
+                                                    range[0].startDate
+                                                ).getTime()) /
+                                                (1000 * 60 * 60)
+                                        )}{" "}
+                                        hours
+                                    </div>
+                                )}
                         </div>
                         <div className="d-flex flex-wrap justify-content-end gap-3">
                             <Form.Check

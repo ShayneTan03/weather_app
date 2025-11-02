@@ -59,6 +59,14 @@ This command will:
 - Frontend Dashboard: `http://localhost:3000`
 - Backend API: `http://localhost:5001`
 
+4. **Dashboard features**
+- The dashboard will only render data once user selects the date range
+- The user can either select the date range from the calendar drop-down or quick access on the top right corner
+- "Radar Scan" tab displays weather information and the trackable map
+- "Feature Analysis" tab displays 3 interactive plots:
+    - "Rainfall & Storm Size vs Time" is an interactive plot where the user can adjust the time frame as needed
+    - The other two plots will also provide additional storm information by hovering the mouse over each data point
+
 4. **Stop the services**
 ```bash
 docker compose down
