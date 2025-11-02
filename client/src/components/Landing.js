@@ -97,8 +97,8 @@ function Dashboard() {
 
             // parameters for API call
             const params = {
-                start: startDate.toISOString(),
-                end: endOfDay.toISOString(),
+                start_time: startDate.toISOString(),
+                end_time: endOfDay.toISOString(),
             };
 
             try {
