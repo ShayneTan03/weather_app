@@ -525,24 +525,24 @@ function RadarMap({ readings, range }) {
                         <div className="d-flex flex-wrap justify-content-start gap-2">
                             <Form.Label>
                                 {new Date(selectedTime)
-                                    .toUTCString()
+                                    .toString()
                                     .split(" ")
                                     .slice(0, 4)
                                     .join(" ")}
                             </Form.Label>
                             <Form.Label>
                                 {new Date(selectedTime)
-                                    .getUTCHours()
+                                    .getHours()
                                     .toString()
                                     .padStart(2, "0")}
                                 :
                                 {new Date(selectedTime)
-                                    .getUTCMinutes()
+                                    .getMinutes()
                                     .toString()
                                     .padStart(2, "0")}
                                 :
                                 {new Date(selectedTime)
-                                    .getUTCSeconds()
+                                    .getSeconds()
                                     .toString()
                                     .padStart(2, "0")}{" "}
                                 GMT

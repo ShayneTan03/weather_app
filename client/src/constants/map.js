@@ -47,6 +47,6 @@ export const getMapPointers = (displays) => [
         color: "purple",
         scale: 15,
         label: "Temperature",
-        unit: "celcius",
+        unit: "C",
     },
 ];
