@@ -1,14 +1,12 @@
 // math.js
 /**
  * 
- * @param {Obj} reading 
+ * @param {Obj} storm 
  * @returns {Obj} 
  */
-export function isStormCandidate(reading) {
+export function isStormCandidate(storm) {
     const MIN_HUMIDITY = 70;
-    const MIN_AREA = 20;
-
-    return reading.humidity > 70;
+    return storm.humidity > MIN_HUMIDITY;
 }
 
 export function getAverage(values) {
@@ -34,7 +32,7 @@ export function getAverage(values) {
  * @param {Date} end - The end time of the storm 
  * @returns {{ hours: int, minutes: int, seconds: int }}
  */
-export function getDuration({start, end}) {
+export function getDuration(start, end) {
     const minute = 1000 * 60;
     const hour = minute * 60;
     const durationMs = end - start // in milliseconds
@@ -43,4 +41,21 @@ export function getDuration({start, end}) {
     const seconds = Math.floor((durationMs % minute) /1000)
 
     return {hours, minutes, seconds};
+}
+
+// format a Date object to "YYYY-MM-DD HH:MM:SS"
+// helper to format Date as 'YYYY-MM-DD HH:mm:ss' in UTC+8
+export function formatTimestamp(date) {
+  // Create a new Date adjusted to +8
+  const utc = date.getTime() + date.getTimezoneOffset() * 60000; // UTC ms
+  const tz8 = new Date(utc - (0 * 60 * 60 * 1000));
+
+  const year = tz8.getFullYear();
+  const month = String(tz8.getMonth() + 1).padStart(2, "0");
+  const day = String(tz8.getDate()).padStart(2, "0");
+  const hours = String(tz8.getHours()).padStart(2, "0");
+  const minutes = String(tz8.getMinutes()).padStart(2, "0");
+  const seconds = String(tz8.getSeconds()).padStart(2, "0");
+
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }

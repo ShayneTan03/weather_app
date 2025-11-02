@@ -1,14 +1,15 @@
 import { useState, useEffect, use } from "react";
 import Plot from "react-plotly.js";
 import { Container, Row, Col, Card } from "react-bootstrap";
-import {ArrowDown } from "react-bootstrap-icons";
+import { ArrowDown } from "react-bootstrap-icons";
 import Header from "./Header";
 import { MetricRow } from "./Metrics";
 import Navigation from "./Navigation";
-import {getMetrics} from "../api/fetchMetrics";
+import { getMetrics } from "../api/fetchMetrics";
 import RadarMap, { DetectedStorms } from "./RadarMap";
 import Plot1 from "./Plot1";
 import Plot2 from "./Plot2";
+import Plot3 from "./Plot3";
 import StormFeatureAnalysis from "./FeatureAnalysis";
 import GlobalDateRangePicker from "./DateRange";
 
@@ -52,8 +53,8 @@ function Dashboard() {
      * set date range here to determine what filter to use on the readingss
      */
     const [dateRange, setDateRange] = useState({
-        start: new Date("2025-05-01T00:00:00Z"),
-        end: new Date("2025-10-31T23:59:59Z")
+        start: new Date("2025-10-05T00:00:00Z"),
+        end: new Date("2025-11-31T23:59:59Z"),
     });
 
     /**
@@ -141,13 +142,14 @@ function Dashboard() {
     const [stormEventLogData, setStormEventLogData] = useState(null);
 
     const [readings, setReadings] = useState(null);
+    const [storms, setStorms] = useState(null);
+
     // any asynchronous logic should be handled within useEffect with a nested fn
     // this will load the necessary data before loading the components of the web page
     useEffect(() => {
         async function loadData() {
             try {
                 // Fetch actual weather observations and stations from the API
-                const observations = await getWeatherObs();
 
                 const stations = await getWeatherStations();
 
@@ -161,15 +163,16 @@ function Dashboard() {
                 const metrics = getMetrics(observations, {start: startDate, end: endOfDay});
 
                 // Map stations to readings with metrics
+                console.log(metrics);
                 const readingMap = stations.map((station) => {
                     const stationMetrics = metrics[station.station_id] || {};
-
                     return {
                         ...station, // include existing station fields
                         humidity: stationMetrics.humidity_pct ?? null,
                         rainfall: stationMetrics.rainfall_mm ?? null,
                         wind_speed: stationMetrics.wind_speed_knots ?? null,
-                        wind_direction: stationMetrics.wind_direction_degrees ?? null,
+                        wind_direction:
+                            stationMetrics.wind_direction_degrees ?? null,
                         temperature: stationMetrics.temperature_c ?? null,
                     };
                 });
@@ -185,8 +188,6 @@ function Dashboard() {
     // reruns if there's any change
     // if empty arr it runs once
     // otherwise i.e [date] it runs whenever the date changes
-    
-
 
     const trendData = [
         {
@@ -312,17 +313,6 @@ function Dashboard() {
         { name: "Severe (>9 dBZ)", value: 5, color: "#ef4444" },
     ];
 
-    // data for plotly to trace
-    const frequencyTrace = {
-        x: trendData.map((d) => d.period),
-        y: trendData.map((d) => d.stormCount),
-        type: "scatter",
-        mode: "lines+markers",
-        line: { color: "#0d6efd", width: 3 },
-        marker: { size: 6 },
-        name: "Storm Count",
-    };
-
     const classificationTrace = {
         values: stormClassification.map((d) => d.value),
         labels: stormClassification.map((d) => d.name),
@@ -332,40 +322,23 @@ function Dashboard() {
         hole: 0.5,
     };
 
-    const metrics = useMemo(() => {
-        if (!readings) return [];
-        const temperatureArr = readings.map(r => r.temperature);
-        const rainfallArr = readings.map(r => r.rainfall);
-        const humidityArr = readings.map(r => r.humidity);
-        const windSpeedArr = readings.map(r => r.wind_speed)
-        return [
-            {
-                title: "Temperature",
-                reading: temperatureArr,
-                icon: <ArrowDown className="text-danger" />,
-                unit: "°C",
-            },
-            {
-                title: "Rainfall",
-                reading: rainfallArr,
-                icon: <ArrowDown className="text-danger" />,
-                unit: "mm",
-            },
-            {
-                title: "Humidity",
-                reading: humidityArr,
-                icon: <ArrowDown className="text-danger" />,
-                unit: "mm",
-            },
-            {
-                title: "Wind Speed",
-                reading: windSpeedArr,
-                icon: <ArrowDown className="text-danger" />,
-                unit: "mm",
-            },
-        ];
-    }, [readings, dateRange]);
+    const avg = (key) =>
+        readings
+        .map(r => Number(r[key]) || 0)
+        .reduce((a, b) => a + b, 0) / readings.length;
 
+    const metrics = useMemo(() => {
+    if (!readings || readings.length === 0) return [];
+
+    return [
+        { title: "Temperature", reading: avg("temperature"), icon: <ArrowDown className="text-danger" />, unit: "°C" },
+        { title: "Rainfall", reading: avg("rainfall_mm"), icon: <ArrowDown className="text-danger" />, unit: "mm" },
+        { title: "Humidity", reading: avg("humidity_pct"), icon: <ArrowDown className="text-danger" />, unit: "%" },
+        { title: "Wind Speed", reading: avg("wind_speed_knots"), icon: <ArrowDown className="text-danger" />, unit: "knots" },
+        { title: "Wind Direction", reading: avg("wind_direction_degrees"), icon: <ArrowDown className="text-danger" />, unit: "°" },
+    ];
+    }, [readings, dateRange]);
+     
 
     return (
         <Container fluid className="py-4">
@@ -387,15 +360,15 @@ function Dashboard() {
                 setActiveShortcut={setActiveShortcut}
                 /> 
 
-            <div className = 'my-4'>
+            <div className="my-4">
                 <Navigation
-                activeView = {activeView}
-                setActiveView = {setActiveView}
-                buttonArr={["map", "plot"]}
+                    activeView={activeView}
+                    setActiveView={setActiveView}
+                    buttonArr={["map", "plot"]}
                 />
             </div>
-            <div className="mt-4"> 
-                {activeView === 'map' && (
+            <div className="mt-4">
+                {activeView === "map" && storms && (
                     <>
                         <MetricRow metrics={metrics} />
                         <Row className="justify-content-center mb-4 mt-5">
@@ -404,14 +377,12 @@ function Dashboard() {
                             </Col>
                             <Col xs={12} md={4}>
                                 <div>
-                                    <DetectedStorms readings={readings} />
+                                    <DetectedStorms storms={storms} />
                                 </div>
                             </Col>
                         </Row>
                     </>
                 )}
-
-                    
             </div>
 
             <div className="mt-4">
@@ -450,32 +421,40 @@ function Dashboard() {
                         </Card>
                     </Col>
 
-                    <Col lg={6}>
-                        <Card>
-                            <Card.Body>
-                                <Card.Title>
-                                    Storm Classification Distribution
-                                </Card.Title>
-                                <Plot
-                                    data={[classificationTrace]}
-                                    layout={{
-                                        autosize: true,
-                                        showlegend: false,
-                                        margin: { t: 20, b: 20, l: 20, r: 20 },
-                                        paper_bgcolor: "transparent",
-                                        plot_bgcolor: "transparent",
-                                    }}
-                                    config={{
-                                        responsive: true,
-                                        displayModeBar: false,
-                                    }}
-                                    style={{ width: "100%", height: "300px" }}
-                                />
-                            </Card.Body>
-                        </Card>
+                            <Col lg={6}>
+                                <Card>
+                                    <Card.Body>
+                                        <Card.Title>
+                                            Storm Classification Distribution
+                                        </Card.Title>
+                                        <Plot
+                                            data={[classificationTrace]}
+                                            layout={{
+                                                autosize: true,
+                                                showlegend: false,
+                                                margin: {
+                                                    t: 20,
+                                                    b: 20,
+                                                    l: 20,
+                                                    r: 20,
+                                                },
+                                                paper_bgcolor: "transparent",
+                                                plot_bgcolor: "transparent",
+                                            }}
+                                            config={{
+                                                responsive: true,
+                                                displayModeBar: false,
+                                            }}
+                                            style={{
+                                                width: "100%",
+                                                height: "300px",
+                                            }}
+                                        />
+                                    </Card.Body>
+                                </Card>
+                            </Col>
+                        </Row>
                     </Col>
-                </Row>
-                </Col>
                 )}
             </div>
         </Container>

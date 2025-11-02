@@ -49,7 +49,7 @@ export async function getPlot1Data(params = {}) {
 }
 
 // Plot2
-export async function display_join(params = {}) {
+export async function getPlot2Data(params = {}) {
     const qs = new URLSearchParams(params).toString();
     console.log(qs);
     const p = await request(`/join/plot2${qs ? `?${qs}` : ""}`);

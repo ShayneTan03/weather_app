@@ -2,7 +2,7 @@ const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
 async function request(path, opts = {}) {
   const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), opts.timeout || 30000);
+  const id = setTimeout(() => controller.abort(), opts.timeout || 60000);
   try {
     const res = await fetch(API_BASE + path, {
       method: opts.method || "GET",
@@ -44,6 +44,12 @@ function unwrap(payload) {
 /* --- Exported endpoint helpers --- */
 
 // Weather Stations
+export async function ping() {
+  const p = await request("/api");
+  return "pong";
+}
+
+
 export async function getWeatherStations() {
   const p = await request("/list/weatherstations");
   return unwrap(p);
@@ -57,7 +63,6 @@ export async function getWeatherStationById(station_id) {
 // Weather Observations
 export async function getWeatherObs(params = {}) {
   const qs = new URLSearchParams(params).toString();
-  console.log(qs)
   const p = await request(`/list/weatherobs${qs ? `?${qs}` : ""}`);
   return unwrap(p);
 }

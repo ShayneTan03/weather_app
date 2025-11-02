@@ -118,7 +118,10 @@ function FeatureRow({features}) {
 /**
  * Actual Component for Storm Feature Analysis
  */
-function StormFeatureAnalysis({ stormSummaryData }) {
+function StormFeatureAnalysis({storms, Data1}) {
+    const averageDuration = storms.reduce((sum, storm) => sum + storm.duration, 0) / storms.length;
+    const averageIntensity = storms.reduce((sum, storm) => sum + storm.avg_dbz, 0) / storms.length;
+    const averageSize = storms.reduce((sum, storm) => sum + storm.avg_area, 0) / storms.length;
 
     // Initialize selectedStormID with the stormId of the first element in Data1
     const [selectedStormID, setSelectedStormID] = useState(
@@ -186,7 +189,7 @@ function StormFeatureAnalysis({ stormSummaryData }) {
             <Card>
                 <Card.Body>
                     <Card.Title>Storm Feature Analysis</Card.Title>
-
+                    {storms && <FeatureRow features = {avgFeaturesArray} />}
                     {/* Dropdown to select storm ID */}
                     <Form.Group controlID = 'stormSelet' className = 'mb-3'>
                         <Form.Label>Select Storm ID:</Form.Label>
