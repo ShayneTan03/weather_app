@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import Plot from "react-plotly.js";
 import { Container, Row, Col, Card } from "react-bootstrap";
-import { ArrowDown } from "react-bootstrap-icons";
+import { ThermometerHalf, CloudRain, Droplet, Wind, ArrowDown } from "react-bootstrap-icons";
 import Header from "./Header";
 import { MetricRow } from "./Metrics";
 import Navigation from "./Navigation";
@@ -311,40 +311,51 @@ function Dashboard() {
         return values.reduce((a, b) => a + b, 0) / values.length;
     };
 
-    // Memoized metrics for MetricRow
     const avgMetrics = useMemo(() => {
         if (!metrics || typeof metrics !== "object") return [];
+
+        const windDirectionAvg = avg("wind_direction");
 
         return [
             {
                 title: "Temperature",
                 reading: avg("temperature"),
-                icon: <ArrowDown className="text-danger" />,
+                icon: <ThermometerHalf className="text-danger" />,
                 unit: "°C",
             },
             {
                 title: "Rainfall",
                 reading: avg("rainfall_mm"),
-                icon: <ArrowDown className="text-danger" />,
+                icon: <CloudRain className="text-primary" />,
                 unit: "mm",
             },
             {
                 title: "Humidity",
                 reading: avg("humidity_pct"),
-                icon: <ArrowDown className="text-danger" />,
+                icon: <Droplet className="text-info" />,
                 unit: "%",
             },
             {
                 title: "Wind Speed",
                 reading: avg("wind_speed"),
-                icon: <ArrowDown className="text-danger" />,
+                icon: <Wind className="text-warning" />,
                 unit: "knots",
             },
             {
                 title: "Wind Direction",
-                reading: avg("wind_direction"),
-                icon: <ArrowDown className="text-danger" />,
-                unit: "°",
+                reading: windDirectionAvg,
+                icon:
+                    windDirectionAvg !== null ? (
+                        <ArrowDown
+                            className="text-primary"
+                            style={{
+                                transform: `rotate(${windDirectionAvg}deg)`,
+                            }}
+                        />
+                    ) : (
+                        <span>-</span>
+                    ),
+                unit: "",
             },
         ];
     }, [metrics, range]);

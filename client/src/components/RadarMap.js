@@ -5,6 +5,7 @@ import {
     Popup,
     Circle,
     Tooltip,
+    Polyline
 } from "react-leaflet";
 import { useState, useEffect } from "react";
 import { Card, Badge, Form, Button } from "react-bootstrap";
@@ -42,6 +43,9 @@ function RadarOverlay({ selectedTime }) {
                 const storms = await getStormsAtTimestamp({
                     timestamp: timestampStr,
                 });
+
+                console.log(storms);
+
                 if (!isCancelled) {
                     const frames = storms.flatMap((storm) => {
                         const start = new Date(storm.start_time).getTime();
@@ -64,6 +68,7 @@ function RadarOverlay({ selectedTime }) {
                     setStormFrames(frames);
                 }
             } catch (err) {
+                console.error(err);
                 if (!isCancelled) setStormFrames([]);
             } finally {
                 if (!isCancelled) setLoading(false);
@@ -87,37 +92,100 @@ function RadarOverlay({ selectedTime }) {
 
     if (!stormFrames.length) return null;
 
+    const selectedDate = new Date(selectedTime);
+
+    // start of previous hour
+    const startOfPrevHour = new Date(selectedDate);
+    startOfPrevHour.setHours(selectedDate.getHours() - 1, 0, 0, 0);
+
+    console.log("Selected Time:", selectedDate.getTime());
+    console.log("Start of Previous Hour:", startOfPrevHour.getTime());
+
+    stormFrames.forEach((f, idx) => {
+        console.log(`Frame ${idx}: ${new Date(f.timestamp).getTime()}`);
+    });
+
     const framesToRender = stormFrames.filter(
-        (f) => f.timestamp.getTime() <= new Date(selectedTime).getTime()
+        (f) =>
+            new Date(f.timestamp).getTime() >= startOfPrevHour.getTime() ||
+            new Date(f.timestamp).getTime() <= selectedDate.getTime()
     );
+
+    console.log("Frames to Render:", framesToRender);
+
     return (
         <>
-            {framesToRender.map((f, idx) => (
-                <Circle
-                    key={`${f.storm_id}-${idx}`}
-                    center={[
-                        singaporeBounds.south +
-                            (singaporeBounds.north - singaporeBounds.south) *
-                                (1 - f.centroid_y / 100),
-                        singaporeBounds.west +
-                            (singaporeBounds.east - singaporeBounds.west) *
-                                (f.centroid_x / 100),
-                    ]}
-                    radius={f.area * 100} // adjust scale
-                    fillColor={getDbzColor(f.avg_dbz)}
-                    fillOpacity={0.4}
-                    stroke={false}
-                >
-                    <Tooltip>
-                        <div>
-                            <div>Storm ID: {f.storm_id}</div>
-                            <div>Area: {f.area}</div>
-                            <div>dBZ: {f.avg_dbz}</div>
-                            <div>Time: {f.timestamp.toLocaleString()}</div>
-                        </div>
-                    </Tooltip>
-                </Circle>
-            ))}
+            {framesToRender.map((f, idx) => {
+                const lat =
+                    singaporeBounds.south +
+                    (singaporeBounds.north - singaporeBounds.south) *
+                        (1 - f.centroid_y / 100);
+                const lng =
+                    singaporeBounds.west +
+                    ((singaporeBounds.east - singaporeBounds.west) *
+                        f.centroid_x) /
+                        100;
+
+                return (
+                    <Circle
+                        key={`${f.storm_id}-${idx}`}
+                        center={[lat, lng]}
+                        radius={f.area * 100} // adjust scale
+                        fillColor={getDbzColor(f.avg_dbz)}
+                        fillOpacity={0.4}
+                        stroke={false}
+                    >
+                        <Tooltip>
+                            <div>
+                                <div>Storm ID: {f.storm_id}</div>
+                                <div>Area: {f.area}</div>
+                                <div>dBZ: {f.avg_dbz}</div>
+                                <div>Time: {f.timestamp.toLocaleString()}</div>
+                            </div>
+                        </Tooltip>
+                    </Circle>
+                );
+            })}
+
+            {/* Connect frames with a line if the storm_id is the same */}
+            {framesToRender.reduce((lines, f, idx, arr) => {
+                if (idx === 0) return lines; // skip first
+                const prev = arr[idx - 1];
+                if (f.storm_id === prev.storm_id) {
+                    const latlngs = [
+                        [
+                            singaporeBounds.south +
+                                (singaporeBounds.north -
+                                    singaporeBounds.south) *
+                                    (1 - prev.centroid_y / 100),
+                            singaporeBounds.west +
+                                ((singaporeBounds.east - singaporeBounds.west) *
+                                    prev.centroid_x) /
+                                    100,
+                        ],
+                        [
+                            singaporeBounds.south +
+                                (singaporeBounds.north -
+                                    singaporeBounds.south) *
+                                    (1 - f.centroid_y / 100),
+                            singaporeBounds.west +
+                                ((singaporeBounds.east - singaporeBounds.west) *
+                                    f.centroid_x) /
+                                    100,
+                        ],
+                    ];
+                    lines.push(
+                        <Polyline
+                            key={`${f.storm_id}-line-${idx}`}
+                            positions={latlngs}
+                            color={getDbzColor(f.avg_dbz)}
+                            weight={2}
+                            dashArray="4"
+                        />
+                    );
+                }
+                return lines;
+            }, [])}
         </>
     );
 }
@@ -230,7 +298,7 @@ export function DetectedStorms({ storms }) {
                         {storms.length} storms detected
                     </small>
                 </Card.Header>
-                <Card.Body style={{ maxHeight: "54.5vh", overflowY: "auto" }}>
+                <Card.Body style={{ maxHeight: "68vh", overflowY: "auto" }}>
                     {storms &&
                         storms.map((storm) => (
                             <div className="border rounded p-3 mb-3">
@@ -339,10 +407,28 @@ function RadarMap({ readings, range }) {
                     <Form className="mb-4">
                         <div className="d-flex flex-wrap justify-content-start gap-2">
                             <Form.Label>
-                                {new Date(selectedTime).toLocaleDateString()}
+                                {new Date(selectedTime)
+                                    .toUTCString()
+                                    .split(" ")
+                                    .slice(0, 4)
+                                    .join(" ")}
                             </Form.Label>
                             <Form.Label>
-                                {new Date(selectedTime).toLocaleTimeString()}
+                                {new Date(selectedTime)
+                                    .getUTCHours()
+                                    .toString()
+                                    .padStart(2, "0")}
+                                :
+                                {new Date(selectedTime)
+                                    .getUTCMinutes()
+                                    .toString()
+                                    .padStart(2, "0")}
+                                :
+                                {new Date(selectedTime)
+                                    .getUTCSeconds()
+                                    .toString()
+                                    .padStart(2, "0")}{" "}
+                                GMT
                             </Form.Label>
                         </div>
 
