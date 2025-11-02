@@ -479,7 +479,16 @@ function RadarMap({ readings, range }) {
                         </div>
 
                         <div className="mb-3 text-muted small">
-                            <div>Coverage: X Hours</div>
+                            {range && range[0] && range[0].startDate && range[0].endDate && (
+                                <div>
+                                    Coverage: {Math.round(
+                                        (new Date(range[0].endDate).getTime() -
+                                            new Date(range[0].startDate).getTime()) /
+                                            (1000 * 60 * 60)
+                                    )}{" "}
+                                    hours
+                                </div>
+                            )}
                         </div>
                         <div className="d-flex flex-wrap justify-content-end gap-3">
                             <Form.Check
