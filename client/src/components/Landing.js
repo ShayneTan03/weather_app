@@ -176,109 +176,6 @@ function Dashboard() {
     // if empty arr it runs once
     // otherwise i.e [date] it runs whenever the date changes
 
-    //data for plot1
-    const Data1 = [
-        {
-            stormId: "STORM_A",
-            points: [
-                { timestamp: "2025-10-20T00:00Z", rainfall: 1.5, size: 60 },
-                { timestamp: "2025-10-20T01:00Z", rainfall: 6.2, size: 140 },
-                { timestamp: "2025-10-20T02:00Z", rainfall: 4.0, size: 100 },
-                { timestamp: "2025-10-20T03:00Z", rainfall: 2.1, size: 70 },
-                { timestamp: "2025-10-20T04:00Z", rainfall: 7.3, size: 150 },
-                { timestamp: "2025-10-20T05:00Z", rainfall: 3.2, size: 90 },
-            ],
-        },
-        {
-            stormId: "STORM_B",
-            points: [
-                { timestamp: "2025-10-20T02:00Z", rainfall: 2.5, size: 50 },
-                { timestamp: "2025-10-20T03:00Z", rainfall: 8.1, size: 180 },
-                { timestamp: "2025-10-20T04:00Z", rainfall: 12.3, size: 240 },
-                { timestamp: "2025-10-20T05:00Z", rainfall: 5.0, size: 110 },
-                { timestamp: "2025-10-20T06:00Z", rainfall: 3.8, size: 90 },
-            ],
-        },
-    ];
-    // data for plot2 (each storm is a single averaged point)
-    const Data2 = [
-        {
-            stormId: "STORM_C",
-            rainfall: 4.3,
-            windspeed: 20.4,
-            size: 102,
-            intensity: 5.6,
-        },
-        {
-            stormId: "STORM_D",
-            rainfall: 5.3,
-            windspeed: 28.0,
-            size: 150,
-            intensity: 7.8,
-        },
-        {
-            stormId: "STORM_E",
-            rainfall: 6.1,
-            windspeed: 33.7,
-            size: 178,
-            intensity: 8.6,
-        },
-        {
-            stormId: "STORM_F",
-            rainfall: 3.9,
-            windspeed: 18.5,
-            size: 88,
-            intensity: 4.7,
-        },
-        {
-            stormId: "STORM_G",
-            rainfall: 2.7,
-            windspeed: 12.9,
-            size: 60,
-            intensity: 3.2,
-        },
-        {
-            stormId: "STORM_H",
-            rainfall: 7.4,
-            windspeed: 41.2,
-            size: 210,
-            intensity: 9.3,
-        },
-        {
-            stormId: "STORM_I",
-            rainfall: 4.9,
-            windspeed: 24.6,
-            size: 125,
-            intensity: 6.1,
-        },
-    ];
-
-    // Dummy data for feature analysis component - will be replaced by plot3Data
-    const Data3 = [
-        {
-            storm_id: "STORM-A-2025",
-            start_time: "2025-10-01T10:00:00Z",
-            end_time: "2025-10-01T12:00:00Z",
-            duration: 120,
-            avg_area: 150.5,
-            max_area: 300.0,
-            avg_dbz: 40.2,
-            max_dbz: 55.0,
-            total_distance_traveled: 25.5, // km
-        },
-        {
-            storm_id: "STORM-B-2025",
-            start_time: "2025-10-02T14:00:00Z",
-            end_time: "2025-10-02T15:30:00Z",
-            duration: 90,
-            avg_area: 120.0,
-            max_area: 250.0,
-            avg_dbz: 38.0,
-            max_dbz: 50.0,
-            total_distance_traveled: 15.0,
-        },
-    ];
-
     const stormClassification = [
         { name: "Light (<5 dBZ)", value: 35, color: "#22c55e" },
         { name: "Moderate (5–7 dBZ)", value: 40, color: "#eab308" },
@@ -418,7 +315,7 @@ function Dashboard() {
                             )}
                             {/* Display Feature Analysis */}
                             {/* Replace Data3 with actual StormData when API is ready */}
-                            <StormFeatureAnalysis storms={storms} />
+                            {/* <StormFeatureAnalysis storms={storms} /> */}
 
                             {/* Wrap the Plot1 with Col and Card for cleaner layout */}
                             <Col xs={12}>
@@ -453,31 +350,10 @@ function Dashboard() {
                                 <Card>
                                     <Card.Body>
                                         <Card.Title>
-                                            Storm Classification Distribution
+                                            Storm Duration vs Intensity
                                         </Card.Title>
-                                        <Plot
-                                            data={[classificationTrace]}
-                                            layout={{
-                                                autosize: true,
-                                                showlegend: false,
-                                                margin: {
-                                                    t: 20,
-                                                    b: 20,
-                                                    l: 20,
-                                                    r: 20,
-                                                },
-                                                paper_bgcolor: "transparent",
-                                                plot_bgcolor: "transparent",
-                                            }}
-                                            config={{
-                                                responsive: true,
-                                                displayModeBar: false,
-                                            }}
-                                            style={{
-                                                width: "100%",
-                                                height: "300px",
-                                            }}
-                                        />
+                                        {/* Display Plot3 only if data is available */}
+                                        {plot3Data && <Plot3 Data3 = {plot3Data} />}
                                     </Card.Body>
                                 </Card>
                             </Col>

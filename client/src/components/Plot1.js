@@ -117,8 +117,8 @@ export function RainfallStormsize({ Data1 }) {
             xaxis: {
                 title: { text: "Time" },
                 type: "date",
-                tickformat: "%b %d",
-                dtick: 7 * 24 * 60 * 60 * 1000,
+                tickformat: "%b %d, %H:%M",  // Show both date and time
+                // Remove fixed dtick to allow Plotly to auto-adjust based on zoom level
                 rangeslider: { 
                     visible: true,
                     bgcolor: "#f5f5f5",
@@ -127,6 +127,8 @@ export function RainfallStormsize({ Data1 }) {
                     thickness: 0.08,
                 },
                 uirevision: "keep-x-zoom",
+                // Auto-adjust tick spacing based on range
+                autorange: true,
             },
 
             // invisible twin axis for markers and lines

@@ -1,23 +1,21 @@
 import Plot from "react-plotly.js";
 
 function getIntensityCategory(intensity) {
-    if (intensity < 5) return 'Light';
-    if (intensity < 7) return 'Moderate';
-    if (intensity < 9) return 'Heavy';
-    return 'Severe';
+    if (intensity < 66) return '64-66 dBZ';
+    if (intensity < 68) return '66-68 dBZ';
+    return '68-70 dBZ';
 }
 
 function getIntensityColor(intensity) {
-    if (intensity < 5) return '#22c55e';  // Light - Green
-    if (intensity < 7) return '#eab308';  // Moderate - Yellow
-    if (intensity < 9) return '#f59e0b';  // Heavy - Orange
-    return                    '#ef4444';  // Severe - Red
+    if (intensity < 66) return '#22c55e';  // 64-66 dBZ - Green
+    if (intensity < 68) return '#eab308';  // 66-68 dBZ - Yellow
+    return                    '#ef4444';   // 68-70 dBZ - Red
 }
 
 function storm_frequency ({Data2}) {
     const x = Data2.map(d => Number(d.rainfall));
     const y = Data2.map(d => Number(d.windspeed));
-    const sizes = Data2.map(d => Math.max(6, Number(d.size)*0.5 || 6));
+    const sizes = Data2.map(d => Math.max(6, Number(d.size)*0.1 || 6));
     const intensities = Data2.map(d => Number(d.intensity));
     const colors = intensities.map(i => getIntensityColor(i));
     const categories = intensities.map(i => getIntensityCategory(i));
@@ -45,16 +43,15 @@ function storm_frequency ({Data2}) {
                     name: "Storms",
                     showlegend: false
                 },
-                ...['Light', 'Moderate', 'Heavy', 'Severe'].map(category => ({
+                ...['64-66 dBZ', '66-68 dBZ', '68-70 dBZ'].map(category => ({
                     x: [null],
                     y: [null],
                     mode: 'markers',
                     marker: {
                         size: 10,
                         color: getIntensityColor(
-                            category === 'Light' ? 4 :
-                            category === 'Moderate' ? 6 :
-                            category === 'Heavy' ? 8 : 10
+                            category === '64-66 dBZ' ? 65 :
+                            category === '66-68 dBZ' ? 67 : 69
                         )
                     },
                     name: category,

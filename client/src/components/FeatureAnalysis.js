@@ -120,23 +120,26 @@ function FeatureRow({features}) {
  */
 function StormFeatureAnalysis({storms}) {
     console.log(storms);
-    const averageDuration = storms.reduce((sum, storm) => sum + storm.duration, 0) / storms.length;
-    const averageIntensity = storms.reduce((sum, storm) => sum + storm.avg_dbz, 0) / storms.length;
-    const averageSize = storms.reduce((sum, storm) => sum + storm.avg_area, 0) / storms.length;
-
+    
+    // Initialize state FIRST (before any returns)
     const [selectedStormID, setSelectedStormID] = useState(
         storms && storms.length > 0 ? storms[0].storm_id : null
     );
-
+    
     // Handler for changing the selected storm ID
     const handleStormChange = (event) => {
         setSelectedStormID(event.target.value);
     };
-
-    // If stormSummaryDate is not provided or empty, show a message
+    
+    // Early return if no data (AFTER all hooks)
     if (!storms || storms.length === 0) {
         return <p>No storm data for selected date range.</p>;
     }
+    
+    // Calculate averages AFTER confirming we have data
+    const averageDuration = storms.reduce((sum, storm) => sum + storm.duration, 0) / storms.length;
+    const averageIntensity = storms.reduce((sum, storm) => sum + storm.avg_dbz, 0) / storms.length;
+    const averageSize = storms.reduce((sum, storm) => sum + storm.avg_area, 0) / storms.length;
 
     // Find the data for the selected storm ID
     const selectedStorm = storms.find(
