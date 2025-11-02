@@ -407,7 +407,7 @@ function Dashboard() {
                             )}
                             {/* Display Feature Analysis */}
                             {/* Replace Data3 with actual StormData when API is ready */}
-                            <StormFeatureAnalysis storms={storms} />
+                            {/* <StormFeatureAnalysis storms={storms} /> */}
 
                             {/* Wrap the Plot1 with Col and Card for cleaner layout */}
                             <Col xs={12}>
