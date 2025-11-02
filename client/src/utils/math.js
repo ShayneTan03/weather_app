@@ -69,3 +69,21 @@ export function toISODate(d) {
     const day = String(z.getDate()).padStart(2, "0");
     return `${y}-${m}-${day}`;
 }
+
+export const generateTimeline = (rawStart, rawEnd) => {
+    const times = [];
+    const startMs = new Date(rawStart).getTime();
+    const endMs = new Date(rawEnd).getTime();
+
+    const msPerHour = 1000 * 60 * 60;
+    const start = new Date(Math.ceil(startMs / msPerHour) * msPerHour);
+    const end = new Date(Math.floor(endMs / msPerHour) * msPerHour);
+
+    let current = new Date(start);
+
+    while (current <= end) {
+        times.push(current.toISOString());
+        current.setHours(current.getHours() + 1); //increment by 1 hour
+    }
+    return times;
+};

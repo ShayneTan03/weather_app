@@ -30,15 +30,6 @@ import {toISODate} from "../utils/math";
  */
 function Dashboard() {
     const [activeView, setActiveView] = useState("map");
-
-    /**
-     * set date range here to determine what filter to use on the readingss
-     */
-    const [dateRange, setDateRange] = useState({
-        start: new Date("2025-10-05T00:00:00Z"),
-        end: new Date("2025-11-31T23:59:59Z"),
-    });
-
     /**
      * state for date range picker
      * default start date : D-5 from today
@@ -135,8 +126,8 @@ function Dashboard() {
                 const endOfDay = new Date(endDate);
                 endOfDay.setHours(23, 59, 59, 999);
 
-                // Calculate metrics using the fetched data and current dateRange
-                // const metrics = getMetrics(observations, dateRange);
+                // Calculate metrics using the fetched data and current range
+                // const metrics = getMetrics(observations, range);
 
                 const stations = await getWeatherStations();
                 const observations = await getWeatherObs();
@@ -144,7 +135,6 @@ function Dashboard() {
                 const metrics = getMetrics(observations, {start: startDate, end: endOfDay});
 
                 // Map stations to readings with metrics
-                console.log(metrics);
                 const readingMap = stations.map((station) => {
                     const stationMetrics = metrics[station.station_id] || {};
                     return {
@@ -265,7 +255,7 @@ function Dashboard() {
         { title: "Wind Speed", reading: avg("wind_speed_knots"), icon: <ArrowDown className="text-danger" />, unit: "knots" },
         { title: "Wind Direction", reading: avg("wind_direction_degrees"), icon: <ArrowDown className="text-danger" />, unit: "°" },
     ];
-    }, [readings, dateRange]);
+    }, [readings, range]);
     
     return (
         <Container fluid className="py-4">
