@@ -44,10 +44,8 @@ export function getDuration(start, end) {
 }
 
 // format a Date object to "YYYY-MM-DD HH:MM:SS"
-// helper to format Date as 'YYYY-MM-DD HH:mm:ss' in UTC+8
 export function formatTimestamp(date) {
-    // Create a new Date adjusted to +8
-    const utc = date.getTime() + date.getTimezoneOffset() * 60000; // UTC ms
+    const utc = date.getTime() // UTC ms
     const tz8 = new Date(utc - 0 * 60 * 60 * 1000);
 
     const year = tz8.getFullYear();
