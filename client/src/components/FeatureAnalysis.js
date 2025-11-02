@@ -122,7 +122,6 @@ function StormFeatureAnalysis({storms, plot1Data}) {
 
     // Find the log data for the selected storm ID from plot1Data
 
-    // FeatureAnalysis.js (155行目) を修正 [cite: FeatureAnalysis.js]
     const selectedStormLog = plot1Data?.find(s => s.stormId === selectedStormID)?.points || [];
     // const selectedStormLog = plot1Data
     //     ? plot1Data.find(s => s.stormId === selectedStormID)?.points 
