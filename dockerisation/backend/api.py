@@ -390,11 +390,12 @@ def storms_at_timestamp():
 @cache.cached(timeout=3600, query_string=True)
 def display_join():
     """
-    Fetch averaged weather station readings according to timestamp
-    Left-join with storm data
-    Filter by required timestamp
+    Fetch aggregated storm data with averaged weather readings
+    Filter by date range (start_time and end_time)
+    Returns: Array of storms with averaged metrics (for scatter plot)
     """
-    timestamp = request.args.get('timestamp')
+    start_time = request.args.get('start_time')
+    end_time = request.args.get('end_time')
 
     sql_query = """
         WITH avg_weather AS (
@@ -408,39 +409,54 @@ def display_join():
                 timestamp
         )
         SELECT
-            so.timestamp, 
-            so.area_px,
-            so.peak_dbz,
-            aw.avg_rainfall_mm,
-            aw.avg_wind_speed
+            s.storm_id,
+            AVG(COALESCE(aw.avg_rainfall_mm, 0)) AS rainfall,
+            AVG(COALESCE(aw.avg_wind_speed, 0)) AS windspeed,
+            AVG(so.area_px) AS size,
+            AVG(so.peak_dbz) AS intensity
         FROM
-            storm_observation AS so
+            storm s
+        INNER JOIN
+            storm_observation AS so ON so.obs_id = ANY(s.obs_id_list)
         LEFT JOIN
             avg_weather AS aw ON so.timestamp = aw.timestamp
         WHERE
-            aw.timestamp = %s;     
-    """    
-
-    if not timestamp:
-        return jsonify({"error": "Missing 'timestamp' query parameter"}), 400
+            s.duration > 0
+    """
+    
+    params = []
+    if start_time:
+        sql_query += " AND s.start_time >= %s"
+        params.append(start_time)
+    if end_time:
+        sql_query += " AND s.end_time <= %s"
+        params.append(end_time)
+    
+    sql_query += """
+        GROUP BY s.storm_id
+        ORDER BY s.storm_id;
+    """
     
     try:
-        cur = conn.cursor()
-        cur.execute(sql_query, (timestamp,))
-        rows = cur.fetchall()
-
-        # convert to JSON-friendly format
-        colnames = [desc[0] for desc in cur.description]
-        data = [dict(zip(colnames, row)) for row in rows]
-
-        cur.close()
-        logger.info("Stored new results in cache for /storms")
+        rows = fetch_query(sql_query, tuple(params) if params else None)
+        
+        # Format data to match Plot2 expectations
+        data = []
+        for row in rows:
+            data.append({
+                "stormId": row['storm_id'],
+                "rainfall": round(float(row['rainfall']), 2) if row['rainfall'] else 0,
+                "windspeed": round(float(row['windspeed']), 2) if row['windspeed'] else 0,
+                "size": round(float(row['size']), 1) if row['size'] else 0,
+                "intensity": round(float(row['intensity']), 1) if row['intensity'] else 0
+            })
+        
+        logger.info(f"Stored new results in cache for /join/plot2 (returned {len(data)} storms)")
+        return make_response("success", data=data, message=f"Fetched {len(data)} storms with averaged metrics successfully")
 
     except Exception as e:
-        logger.error(f"Error fetching storms by time: {str(e)}")
+        logger.error(f"Error fetching plot2 data: {str(e)}")
         return make_response("error", message=str(e), code=500)
-    
-    return make_response("success", data=data, message=f"Fetched averaged measurements and storm area at {timestamp} successfully")
 
 @app.route('/join/plot3', methods=["GET"])
 @cache.cached(timeout=3600, query_string=True)
@@ -469,7 +485,14 @@ def get_plot3_data():
             MAX(so.area_px) AS max_area,
             AVG(so.peak_dbz) AS avg_dbz,
             MAX(so.peak_dbz) AS max_dbz,
-            s.total_distance_traveled
+            CASE 
+                WHEN array_length(s.anchor_x_list, 1) > 1 THEN
+                    SQRT(
+                        POWER(s.anchor_x_list[array_length(s.anchor_x_list, 1)] - s.anchor_x_list[1], 2) +
+                        POWER(s.anchor_y_list[array_length(s.anchor_y_list, 1)] - s.anchor_y_list[1], 2)
+                    )
+                ELSE 0
+            END AS total_displacement
         FROM
             storm s
         INNER JOIN
@@ -488,7 +511,7 @@ def get_plot3_data():
     
     sql_query += """
         GROUP BY
-            s.storm_id, s.start_time, s.end_time, s.duration, s.total_distance_traveled
+            s.storm_id, s.start_time, s.end_time, s.duration, s.anchor_x_list, s.anchor_y_list
         ORDER BY
             s.start_time
     """
@@ -509,7 +532,7 @@ def get_plot3_data():
                 "max_area": round(float(row['max_area']), 1) if row['max_area'] else 0,
                 "avg_dbz": round(float(row['avg_dbz']), 1) if row['avg_dbz'] else 0,
                 "max_dbz": round(float(row['max_dbz']), 1) if row['max_dbz'] else 0,
-                "total_distance_traveled": round(float(row['total_distance_traveled']), 1) if row['total_distance_traveled'] else 0
+                "total_distance_traveled": round(float(row['total_displacement']), 1) if row['total_displacement'] else 0
             })
         
         logger.info(f"Returning {len(data)} storms for plot3")
@@ -573,16 +596,7 @@ def get_plot1_data():
     sql_query += " ORDER BY s.storm_id, so.timestamp;"
     
     try:
-        cur = conn.cursor()
-        if params:
-            cur.execute(sql_query, tuple(params))
-        else:
-            cur.execute(sql_query)
-        
-        rows = cur.fetchall()
-        colnames = [desc[0] for desc in cur.description]
-        raw_data = [dict(zip(colnames, row)) for row in rows]
-        cur.close()
+        raw_data = fetch_query(sql_query, tuple(params) if params else None)
         
         # Transform data into required format: group by storm_id
         storms_dict = {}

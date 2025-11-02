@@ -352,31 +352,10 @@ function Dashboard() {
                                 <Card>
                                     <Card.Body>
                                         <Card.Title>
-                                            Storm Classification Distribution
+                                            Storm Duration vs Intensity
                                         </Card.Title>
-                                        <Plot
-                                            data={[classificationTrace]}
-                                            layout={{
-                                                autosize: true,
-                                                showlegend: false,
-                                                margin: {
-                                                    t: 20,
-                                                    b: 20,
-                                                    l: 20,
-                                                    r: 20,
-                                                },
-                                                paper_bgcolor: "transparent",
-                                                plot_bgcolor: "transparent",
-                                            }}
-                                            config={{
-                                                responsive: true,
-                                                displayModeBar: false,
-                                            }}
-                                            style={{
-                                                width: "100%",
-                                                height: "300px",
-                                            }}
-                                        />
+                                        {/* Display Plot3 only if data is available */}
+                                        {plot3Data && <Plot3 Data3 = {plot3Data} />}
                                     </Card.Body>
                                 </Card>
                             </Col>
