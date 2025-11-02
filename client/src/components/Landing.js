@@ -23,11 +23,14 @@ import GlobalDateRangePicker from "./DateRange";
 // } from '../api/fetchApi';
 
 // temporary import until API is ready
+<<<<<<< HEAD
 import { getPlot1Data, getPlot2Data } from "../api/fetchPlots";
 import { getWeatherObs, getWeatherStations, getStorms } from '../api/fetchApi';
+=======
+import { getPlot1Data, getPlot2Data, getPlot3Data } from "../api/fetchPlots";
+import { getWeatherObs, getWeatherStations } from '../api/fetchApi';
+>>>>>>> 7e866be180fad4df024634275d872c7afe6309c1
 import { useMemo } from "react";
-import { de } from "date-fns/locale";
-import { set } from "date-fns";
 
 
 /**
@@ -74,7 +77,7 @@ function Dashboard() {
     const [fullStormData, setFullStormData] = useState(null);
     const [plot1Data, setPlot1Data] = useState(null);
     const [plot2Data, setPlot2Data] = useState(null);
-    // const [plot3Data, setPlot3Data] = useState(null); 
+    const [plot3Data, setPlot3Data] = useState(null); 
     const [apiLoading, setApiLoading] = useState(false);
     const [apiError, setApiError] = useState(null);
 
@@ -98,24 +101,21 @@ function Dashboard() {
 
             // parameters for API call
             const params = {
-                start_time: startDate.toISOString(),
-                end_time: endOfDay.toISOString(),
+                start_time: toISODate(startDate),
+                end_time: toISODate(endOfDay),
             };
 
             try {
                 // Call 3 APIs at once using Promise.all
-                // const [p1, p2, p3] = await Promise.all([
-
-                // Call 2 APIs at once using Promise.all
-                const [p1, p2] = await Promise.all([
+                const [p1, p2, p3] = await Promise.all([
                     getPlot1Data(params),
                     getPlot2Data(params),
-                    // getPlot3Data(params),
+                    getPlot3Data(params),
                 ]);
 
                 setPlot1Data(p1);
                 setPlot2Data(p2);
-                // setPlot3Data(p3);
+                setPlot3Data(p3);
 
             } catch (error) {
                 console.error("Failed to load plot data:", error); // for debugging
@@ -123,7 +123,7 @@ function Dashboard() {
                 // reset data on error
                 setPlot1Data(null);
                 setPlot2Data(null);
-                // setPlot3Data(null);
+                setPlot3Data(null);
             } finally {
                 setApiLoading(false);
             }
@@ -192,40 +192,6 @@ function Dashboard() {
     // if empty arr it runs once
     // otherwise i.e [date] it runs whenever the date changes
 
-    const trendData = [
-        {
-            period: "2022-01",
-            stormCount: 45,
-            avgDuration: 18.2,
-            avgArea: 280,
-            avgIntensity: 6.1,
-            avgDistance: 8.5,
-        },
-        {
-            period: "2022-02",
-            stormCount: 38,
-            avgDuration: 19.8,
-            avgArea: 295,
-            avgIntensity: 6.3,
-            avgDistance: 9.1,
-        },
-        {
-            period: "2023-01",
-            stormCount: 38,
-            avgDuration: 22.1,
-            avgArea: 320,
-            avgIntensity: 6.8,
-            avgDistance: 11.2,
-        },
-        {
-            period: "2023-02",
-            stormCount: 32,
-            avgDuration: 25.3,
-            avgArea: 355,
-            avgIntensity: 7.4,
-            avgDistance: 13.5,
-        },
-    ];
     //data for plot1
     const Data1 = [
         {
@@ -261,7 +227,7 @@ function Dashboard() {
         { stormId: "STORM_I", rainfall: 4.9, windspeed: 24.6, size: 125, intensity: 6.1 },
     ];
 
-    // Dummy data for feature analysis component
+    // Dummy data for feature analysis component - will be replaced by plot3Data
     const Data3 = [
     {
         storm_id: "STORM-A-2025",
@@ -287,6 +253,7 @@ function Dashboard() {
     }
 ];
 
+<<<<<<< HEAD
     const avg = (key) => {
         if (!readings || readings.length === 0) return 0;
         return readings
@@ -294,6 +261,8 @@ function Dashboard() {
             .reduce((a, b) => a + b, 0) / readings.length;
     };
 
+=======
+>>>>>>> 7e866be180fad4df024634275d872c7afe6309c1
     const stormClassification = [
         { name: "Light (<5 dBZ)", value: 35, color: "#22c55e" },
         { name: "Moderate (5–7 dBZ)", value: 40, color: "#eab308" },
@@ -310,6 +279,13 @@ function Dashboard() {
         hole: 0.5,
     };
 
+    // Helper function to calculate average of a field from readings
+    const avg = (key) => {
+        if (!readings || readings.length === 0) return 0;
+        return readings
+            .map(r => Number(r[key]) || 0)
+            .reduce((a, b) => a + b, 0) / readings.length;
+    };
 
     const metrics = useMemo(() => {
     if (!readings || readings.length === 0) return [];
@@ -377,8 +353,13 @@ function Dashboard() {
                     {apiLoading && <div>Loading charts...</div>}
                     {apiError && <div style={{ color: 'red' }}>Error: {apiError}</div>}
                     {/* Display Feature Analysis */}
+<<<<<<< HEAD
                     {/* Replace Data3 with actual StormData when API is ready */}
                     <StormFeatureAnalysis storms={storms} />
+=======
+                    {/* Use plot3Data when available, fallback to Data3 for demo */}
+                    <StormFeatureAnalysis stormSummaryData={plot3Data || Data3} />
+>>>>>>> 7e866be180fad4df024634275d872c7afe6309c1
                     
                     {/* Wrap the Plot1 with Col and Card for cleaner layout */}
                     <Col xs={12}>

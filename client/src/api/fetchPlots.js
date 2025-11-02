@@ -55,3 +55,10 @@ export async function getPlot2Data(params = {}) {
     const p = await request(`/join/plot2${qs ? `?${qs}` : ""}`);
     return unwrap(p);
 }
+
+// Plot3
+export async function getPlot3Data(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    const p = await request(`/join/plot3${qs ? `?${qs}` : ""}`);
+    return unwrap(p);
+}
