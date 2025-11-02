@@ -1,4 +1,3 @@
-import React, { useEffect, useMemo, useState } from "react";
 import Plot from "react-plotly.js";
 
 function getIntensityCategory(intensity) {

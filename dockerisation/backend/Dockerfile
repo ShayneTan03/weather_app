@@ -9,6 +9,8 @@ copy .env ./
 # for env file loading
 ENV PYTHONUNBUFFERED=1
 
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && update-ca-certificates && rm -rf /var/lib/apt/lists/*
+
 RUN pip install --no-cache-dir -r backend_requirements.txt
 
 EXPOSE 5000

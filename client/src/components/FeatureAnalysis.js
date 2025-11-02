@@ -1,4 +1,4 @@
-import React, {useState} from "react";
+import {useState} from "react";
 import {Card, Col, Row, Form} from 'react-bootstrap';
 
 // Hello I'm Yohei!
@@ -76,7 +76,10 @@ function analyzeStormData(points) {
 /**
  * Actual Component for Storm Feature Analysis
  */
-function StormFeatureAnalysis({Data1}) {
+function StormFeatureAnalysis({storms, Data1}) {
+    const averageDuration = storms.reduce((sum, storm) => sum + storm.duration, 0) / storms.length;
+    const averageIntensity = storms.reduce((sum, storm) => sum + storm.avg_dbz, 0) / storms.length;
+    const averageSize = storms.reduce((sum, storm) => sum + storm.avg_area, 0) / storms.length;
 
     // Initialize selectedStormID with the stormId of the first element in Data1
     const [selectedStormID, setSelectedStormID] = useState(
@@ -102,7 +105,25 @@ function StormFeatureAnalysis({Data1}) {
     const pointsToAnalyze = selectedStormData ? selectedStormData.points : null;
     const features = analyzeStormData(pointsToAnalyze);
 
-    // Prepare array of features for display
+
+    const avgFeaturesArray = [
+        {
+            title: "Average Duration",
+            value: averageDuration,
+            unit: "minutes",
+        },
+        {
+            title: "Average Intensity",
+            value: averageIntensity,
+            unit: "dbz",
+        },
+        {
+            title: "Average Size",
+            value: averageSize,
+            unit: "km2",
+        },
+    ]
+
     const featuresArray = [
         {
             title: "Peak Rainfall",
@@ -127,7 +148,7 @@ function StormFeatureAnalysis({Data1}) {
             <Card>
                 <Card.Body>
                     <Card.Title>Storm Feature Analysis</Card.Title>
-
+                    {storms && <FeatureRow features = {avgFeaturesArray} />}
                     {/* Dropdown to select storm ID */}
                     <Form.Group controlID = 'stormSelet' classname = 'mb-3'>
                         <Form.Label>Select Storm ID:</Form.Label>
@@ -135,7 +156,7 @@ function StormFeatureAnalysis({Data1}) {
                             value = {selectedStormID}
                             onChange = {handleStormChange}
                         >
-                            {Data1.map((storm) => (
+                            {storms && Data1.map((storm) => (
                                 <option key = {storm.stormId} value={storm.stormId}>
                                     {storm.stormId}
                                 </option>
@@ -144,7 +165,7 @@ function StormFeatureAnalysis({Data1}) {
                     </Form.Group>
                     
                     {/* Display corresponding feature cards of the selected storm */}
-                    <FeatureRow features = {featuresArray} />
+                    {<FeatureRow features = {featuresArray} />}
                 </Card.Body>
             </Card>
         </Col>
