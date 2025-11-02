@@ -480,6 +480,83 @@ def display_join():
     
     return make_response("success", data=data, message=f"Fetched averaged measurements and storm area at {timestamp} successfully")
 
+@app.route('/join/plot3', methods=["GET"])
+@cache.cached(timeout=3600, query_string=True)
+def get_plot3_data():
+    """
+    Returns storm summary statistics for Plot3 visualization
+    Format: Wrapped JSON array of storms with aggregated metrics
+    Each storm includes: storm_id, start_time, end_time, duration,
+    avg_area, max_area, avg_dbz, max_dbz, total_distance_traveled
+    
+    Optional query params:
+    - start_time: Filter storms starting after this time (YYYY-MM-DD)
+    - end_time: Filter storms ending before this time (YYYY-MM-DD)
+    """
+    start_time = request.args.get('start_time')
+    end_time = request.args.get('end_time')
+
+    # SQL query to get summary statistics per storm
+    sql_query = """
+        SELECT
+            s.storm_id,
+            s.start_time,
+            s.end_time,
+            s.duration,
+            AVG(so.area_px) AS avg_area,
+            MAX(so.area_px) AS max_area,
+            AVG(so.peak_dbz) AS avg_dbz,
+            MAX(so.peak_dbz) AS max_dbz,
+            s.total_distance_traveled
+        FROM
+            storm s
+        INNER JOIN
+            storm_observation so ON so.obs_id = ANY(s.obs_id_list)
+        WHERE
+            s.duration > 0
+    """
+    
+    params = []
+    if start_time:
+        sql_query += " AND s.start_time >= %s"
+        params.append(start_time)
+    if end_time:
+        sql_query += " AND s.end_time <= %s"
+        params.append(end_time)
+    
+    sql_query += """
+        GROUP BY
+            s.storm_id, s.start_time, s.end_time, s.duration, s.total_distance_traveled
+        ORDER BY
+            s.start_time
+    """
+    
+    try:
+        logger.info(f"Fetching plot3 data with params: start={start_time}, end={end_time}")
+        rows = fetch_query(sql_query, params)
+        
+        # Format the data to match the expected structure
+        data = []
+        for row in rows:
+            data.append({
+                "storm_id": row['storm_id'],
+                "start_time": row['start_time'].isoformat() if row['start_time'] else None,
+                "end_time": row['end_time'].isoformat() if row['end_time'] else None,
+                "duration": float(row['duration']) if row['duration'] else 0,
+                "avg_area": round(float(row['avg_area']), 1) if row['avg_area'] else 0,
+                "max_area": round(float(row['max_area']), 1) if row['max_area'] else 0,
+                "avg_dbz": round(float(row['avg_dbz']), 1) if row['avg_dbz'] else 0,
+                "max_dbz": round(float(row['max_dbz']), 1) if row['max_dbz'] else 0,
+                "total_distance_traveled": round(float(row['total_distance_traveled']), 1) if row['total_distance_traveled'] else 0
+            })
+        
+        logger.info(f"Returning {len(data)} storms for plot3")
+        return make_response("success", data=data, message=f"Fetched {len(data)} storms successfully")
+        
+    except Exception as e:
+        logger.error(f"Error in get_plot3_data: {str(e)}")
+        return make_response("error", message=str(e), code=500)
+
 @app.route('/join/plot1', methods=["GET"])
 @cache.cached(timeout=3600, query_string=True)
 def get_plot1_data():
