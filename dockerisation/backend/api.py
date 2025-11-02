@@ -359,7 +359,6 @@ def storms():
         logger.error(f"Error fetching storms: {str(e)}")
         return make_response("error", message=str(e), code=500)
 
-
 ## get specific storm based on timestamp
 @app.route('/storms', methods=["GET"])
 @cache.cached(query_string=True)
@@ -386,43 +385,6 @@ def storms_at_timestamp():
         return make_response("error", message=str(e), code=500)
 
     return make_response("success", data=rows, message=f"Fetched all storms at {timestamp} successfully")
-
-
-@app.route('/list/stormobs', methods=["GET"])
-def stormobs():
-    """
-    responses:
-        200:
-        description: lists all storm observations
-    """
-    try:
-        rows = fetch_query("SELECT * FROM storm_observation;")
-        return jsonify(rows)
-    except Exception as e:
-        logger.error(f"Error fetching storm observations (non-cached): {str(e)}")
-        return make_response("error", message=str(e), code=500)
-
-
-@app.route('/stormobs/<int:id>', methods=["GET"])
-def display_stormobs(id):
-    """
-    parameters:
-        id: id
-        in: path
-        type: int
-        required: true
-        description: id of storm observation to display
-    responses:
-        200:
-        description: displays information of one storm observation
-    """
-    try:
-        rows = fetch_query("SELECT * FROM storm_observation WHERE id = %s;", (id,))
-        return jsonify(rows)
-    except Exception as e:
-        logger.error(f"Error fetching storm observation {id}: {str(e)}")
-        return make_response("error", message=str(e), code=500)
-
 
 @app.route('/join/plot2', methods=["GET"])
 @cache.cached(timeout=3600, query_string=True)
