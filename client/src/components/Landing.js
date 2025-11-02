@@ -335,7 +335,7 @@ function Dashboard() {
                                 <Card>
                                     <Card.Body>
                                         <Card.Title>
-                                            Storm Features Against Rainfall and
+                                            Storm Intensity Against Rainfall and
                                             Wind Speed
                                         </Card.Title>
                                         {/* Display Plot2 only if data is available */}
