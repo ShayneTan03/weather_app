@@ -57,7 +57,7 @@ This command will:
 
 3. **Access the application**
 - Frontend Dashboard: `http://localhost:3000`
-- Backend API: `http://localhost:5000`
+- Backend API: `http://localhost:5001`
 
 4. **Stop the services**
 ```bash
@@ -74,11 +74,11 @@ docker compose up --build
 ## 📂 Repository Structure
 
 ```
-├── src/                    # Core backend modules
-├── tasks/                  # Automation scripts and workflows
-├── frontend/               # React application
-├── docker-compose.yml      # Multi-container orchestration
-└── README.md              # This file
+├── backend/                # Core backend modules
+├── frontend/               # 
+├── dockerisation/          # Multi-container orchestration
+├── client/                 # 
+└── README.md               # This file
 ```
 
 ## 🔑 Key Features
