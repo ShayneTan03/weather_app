@@ -261,6 +261,13 @@ function Dashboard() {
         hole: 0.5,
     };
 
+    // Helper function to calculate average of a field from readings
+    const avg = (key) => {
+        if (!readings || readings.length === 0) return 0;
+        return readings
+            .map(r => Number(r[key]) || 0)
+            .reduce((a, b) => a + b, 0) / readings.length;
+    };
 
     const metrics = useMemo(() => {
     if (!readings || readings.length === 0) return [];
