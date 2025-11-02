@@ -119,43 +119,45 @@ function Dashboard() {
     useEffect(() => {
         async function loadData() {
             try {
-                // Fetch actual weather observations and stations from the API
-
-                // Use global date range picker values
                 const { startDate, endDate } = range[0];
                 const endOfDay = new Date(endDate);
                 endOfDay.setHours(23, 59, 59, 999);
 
-                // Calculate metrics using the fetched data and current range
-                // const metrics = getMetrics(observations, range);
-
                 const stations = await getWeatherStations();
                 const observations = await getWeatherObs();
-                const storms = await getStorms();
-                const metrics = getMetrics(observations, {start: startDate, end: endOfDay});
+                const stormsData = await getStorms();
 
-                // Map stations to readings with metrics
+                const metrics = getMetrics(observations, { start: startDate, end: endOfDay });
+
                 const readingMap = stations.map((station) => {
                     const stationMetrics = metrics[station.station_id] || {};
                     return {
-                        ...station, // include existing station fields
+                        ...station,
                         humidity: stationMetrics.humidity_pct ?? null,
                         rainfall: stationMetrics.rainfall_mm ?? null,
                         wind_speed: stationMetrics.wind_speed_knots ?? null,
-                        wind_direction:
-                            stationMetrics.wind_direction_degrees ?? null,
-                        temperature: stationMetrics.temperature_c ?? null,
+                        wind_direction: stationMetrics.wind_direction_degrees ?? null,
+                        temperature: stationMetrics.temperature ?? null, 
                     };
                 });
 
-                setReadings(readingMap); // Renew state with new readings
-                setStorms(storms);
+                const filteredStorms = stormsData.filter((storm) => {
+                    const stormStart = new Date(storm.start_time);
+                    const stormEnd = new Date(storm.end_time);
+                    return stormStart >= startDate && stormEnd <= endOfDay;
+                });
+
+                setReadings(readingMap);
+                setStorms(filteredStorms);
+
             } catch (err) {
                 console.error(err.message);
             }
         }
+
         loadData();
-    }, [range]); // Runs whenever date range changes
+    }, [range]); 
+    // Runs whenever date range changes
     // react checks if the values in the arr of dependencies changes
     // reruns if there's any change
     // if empty arr it runs once
@@ -239,23 +241,29 @@ function Dashboard() {
     };
 
     const avg = (key) => {
-        if (!readings || readings.length === 0) return 0;
-        return readings
-            .map(r => Number(r[key]) || 0)
-            .reduce((a, b) => a + b, 0) / readings.length;
+        if (!readings || readings.length === 0) return null;
+
+        const values = readings
+            .map(r => r[key])
+            .filter(v => v !== null && v !== undefined && !isNaN(v));
+
+        if (values.length === 0) return null;
+
+        return values.reduce((a, b) => a + b, 0) / values.length;
     };
 
     const metrics = useMemo(() => {
-    if (!readings || readings.length === 0) return [];
+        if (!readings || readings.length === 0) return [];
 
-    return [
-        { title: "Temperature", reading: avg("temperature"), icon: <ArrowDown className="text-danger" />, unit: "°C" },
-        { title: "Rainfall", reading: avg("rainfall_mm"), icon: <ArrowDown className="text-danger" />, unit: "mm" },
-        { title: "Humidity", reading: avg("humidity_pct"), icon: <ArrowDown className="text-danger" />, unit: "%" },
-        { title: "Wind Speed", reading: avg("wind_speed_knots"), icon: <ArrowDown className="text-danger" />, unit: "knots" },
-        { title: "Wind Direction", reading: avg("wind_direction_degrees"), icon: <ArrowDown className="text-danger" />, unit: "°" },
-    ];
+        return [
+            { title: "Temperature", reading: avg("temperature"), icon: <ArrowDown className="text-danger" />, unit: "°C" },
+            { title: "Rainfall", reading: avg("rainfall"), icon: <ArrowDown className="text-danger" />, unit: "mm" },
+            { title: "Humidity", reading: avg("humidity"), icon: <ArrowDown className="text-danger" />, unit: "%" },
+            { title: "Wind Speed", reading: avg("wind_speed_knots"), icon: <ArrowDown className="text-danger" />, unit: "knots" },
+            { title: "Wind Direction", reading: avg("wind_direction_degrees"), icon: <ArrowDown className="text-danger" />, unit: "°" },
+        ];
     }, [readings, range]);
+
     
     return (
         <Container fluid className="py-4">
