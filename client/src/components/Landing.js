@@ -287,8 +287,12 @@ function Dashboard() {
     const recent2023 = trendData.filter((d) => d.period.startsWith("2023"));
     const historical2022 = trendData.filter((d) => d.period.startsWith("2022"));
 
-    const avg = (arr, key) =>
-        arr.reduce((sum, d) => sum + d[key], 0) / arr.length;
+    const avg = (key) => {
+        if (!readings || readings.length === 0) return 0;
+        return readings
+            .map(r => Number(r[key]) || 0)
+            .reduce((a, b) => a + b, 0) / readings.length;
+    };
 
     const avgRecent = {
         stormCount: avg(recent2023, "stormCount"),
@@ -322,10 +326,6 @@ function Dashboard() {
         hole: 0.5,
     };
 
-    const avg = (key) =>
-        readings
-        .map(r => Number(r[key]) || 0)
-        .reduce((a, b) => a + b, 0) / readings.length;
 
     const metrics = useMemo(() => {
     if (!readings || readings.length === 0) return [];
