@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import Plot from "react-plotly.js";
 import { Container, Row, Col, Card } from "react-bootstrap";
 import {ArrowDown } from "react-bootstrap-icons";
@@ -13,7 +13,25 @@ import StormFeatureAnalysis from "./FeatureAnalysis";
 import GlobalDateRangePicker from "./DateRange";
 import {getWeatherObs, getWeatherStations} from "../api/fetchApi";
 import { useMemo } from "react";
+import { de } from "date-fns/locale";
+import { set } from "date-fns";
 
+/**
+ * Helper function for date formatting for API call
+ */
+function toISODate(d) {
+    if (!d) return ''; // handle error case
+    const z = new Date(d);
+    const y = z.getFullYear();
+    const m = String(z.getMonth() + 1).padStart(2, "0");
+    const day = String(z.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+}
+
+
+/**
+ * The main Dashboard Displaying different components
+ */
 function Dashboard() {
     const [activeView, setActiveView] = useState("map");
 
@@ -26,12 +44,60 @@ function Dashboard() {
     });
 
     /**
-     * state for date range picker and passing to feature analysis component (stormSummary~stormEventLog)
+     * state for date range picker
+     * default start date : D-5 from today
      */
+    const defaultDate = new Date();
+    defaultDate.setDate(defaultDate.getDate() - 5); // 5 days ago
+    defaultDate.setHours(0,0,0,0); // set to start of day
     const [range, setRange] = useState([
-        { startDate : new Date(), endDate : new Date(), key : "selection"}
+        { startDate : defaultDate, endDate : defaultDate, key : "selection"}
     ]); // default time range
-    
+
+    /**
+     * state that contains full storm data fetched from backend
+     */
+    const [fullStormData, setFullStormData] = useState(null);
+
+    /**
+     * API CALL HERE
+     * fetch storm data whenever date range changes 
+     */
+    useEffect(() => {
+
+        const { startDate, endDate } = range[0];
+
+        if (startDate && endDate) {
+
+            const fetchStormData = async () => {
+
+                const apiURL = `/api/{name of the call}?start=${toISODate(startDate)}&end=${toISODate(endDate)}`;
+
+                try {
+                    console.log('Fetching storm data from:', apiURL); // for debugging
+
+                    const response = await fetch(apiURL);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const data = await response.json();
+
+                    // Update the state with fetched JSON data
+                    setFullStormData(data);
+                } catch (error) {
+                    console.error('Failed to fetch storm data:', error);
+                    setFullStormData(null); // reset the state when error occurs
+                }
+            };
+
+            fetchStormData();
+        }
+    }, [range]); // This useEffect runs whenever 'range' changes
+                    
+    /**
+     * state for passing to FeatureAnalysis component (stormSummary~stormEventLog)
+     */
+    const [activeShortcut, setActiveShortcut] = useState(1);
     const [stormSummaryData, setStormSummaryData] = useState([]);
     const [selectedStormId, setSelectedStormId] = useState(null);
     const [stormEventLogData, setStormEventLogData] = useState(null);
@@ -146,6 +212,32 @@ function Dashboard() {
         { stormId: "STORM_I", rainfall: 4.9, windspeed: 24.6, size: 125, intensity: 6.1 },
     ];
 
+    // Dummy data for feature analysis component
+    const Data3 = [
+    {
+        storm_id: "STORM-A-2025",
+        start_time: "2025-10-01T10:00:00Z",
+        end_time: "2025-10-01T12:00:00Z",
+        duration: 120, 
+        avg_area: 150.5,
+        max_area: 300.0,
+        avg_dbz: 40.2,
+        max_dbz: 55.0,
+        total_distance_traveled: 25.5 // km
+    },
+    {
+        storm_id: "STORM-B-2025",
+        start_time: "2025-10-02T14:00:00Z",
+        end_time: "2025-10-02T15:30:00Z",
+        duration: 90,
+        avg_area: 120.0,
+        max_area: 250.0,
+        avg_dbz: 38.0,
+        max_dbz: 50.0,
+        total_distance_traveled: 15.0
+    }
+];
+
     const recent2023 = trendData.filter((d) => d.period.startsWith("2023"));
     const historical2022 = trendData.filter((d) => d.period.startsWith("2022"));
 
@@ -243,7 +335,12 @@ function Dashboard() {
             />
 
             {/* Show Date Range Picker above navigation bar*/}
-            <GlobalDateRangePicker range={range} setRange={setRange}/> 
+            <GlobalDateRangePicker
+                range={range}
+                setRange={setRange}
+                activeShortcut={activeShortcut}
+                setActiveShortcut={setActiveShortcut}
+                /> 
 
             <div className = 'my-4'>
                 <Navigation
@@ -278,7 +375,11 @@ function Dashboard() {
 
                 <Row className="g-4"> 
                         {/* Display Feature Analysis */}
-                        {<StormFeatureAnalysis Data1={Data1} />}
+                        {<StormFeatureAnalysis stormSummaryData={Data3} />}
+
+                        {/* use fullStormData when API is ready */}
+                        {/* {<StormFeatureAnalysis allData={fullStormData} />} */} 
+                        
                         {/* Wrap the Plot1 with Col and Card for cleaner layout */}
                         <Col xs={12}>
                             <Card>
