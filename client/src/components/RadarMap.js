@@ -264,7 +264,7 @@ export function DetectedStorms({ storms }) {
     );
 }
 
-function RadarMap({ readings, storms, dateRange }) {
+function RadarMap({ readings, range }) {
     const [selectedOptions, setSelectedOptions] = useState({
         humidity: false,
         rainfall: false,
@@ -306,7 +306,20 @@ function RadarMap({ readings, storms, dateRange }) {
         return times;
     };
 
-    const timeline = generateTimeline(dateRange.start, dateRange.end);
+    // replace by selected date timeline
+    // const start = "2024-09-03T11:20:32";
+    // const end = "2024-09-04T15:55:32";
+
+    // get start and end date from range picker
+    const { startDate, endDate } = range[0];
+    const endOfDay = new Date(endDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Set default start and end if API returns null
+    const start = startDate ? startDate.toISOString() : new Date().toISOString();
+    const end = endOfDay ? endOfDay.toISOString() : new Date().toISOString();
+
+    const timeline = generateTimeline(start, end);
     const currentIndex = timeline.findIndex((t) => t === selectedTime);
 
     const rangeStart = new Date(dateRange.start).getTime();

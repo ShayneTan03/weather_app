@@ -157,155 +157,107 @@ export function RainfallStormsize({ Data1 }) {
     );
 }
 
-function Plot1({ Data1, onDateRangeChange }) {
-  // --- date-range dropdown state ---
-  const [showPicker, setShowPicker] = useState(false);
-  const [range, setRange] = useState([
-    { startDate: null, endDate: null, key: "selection" },
-  ]);
-  const pickerRef = useRef(null);
+function Plot1({ Data1 }) {
+  // // --- date-range dropdown state ---
+  // const [showPicker, setShowPicker] = useState(false);
+  // const [range, setRange] = useState([
+  //   { startDate: null, endDate: null, key: "selection" },
+  // ]);
+  // const pickerRef = useRef(null);
 
-  // close picker on outside click
-  useEffect(() => {
-    function onDocClick(e) {
-      if (!pickerRef.current) return;
-      if (!pickerRef.current.contains(e.target)) setShowPicker(false);
-    }
-    if (showPicker) document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
-  }, [showPicker]);
+  // // close picker on outside click
+  // useEffect(() => {
+  //   function onDocClick(e) {
+  //     if (!pickerRef.current) return;
+  //     if (!pickerRef.current.contains(e.target)) setShowPicker(false);
+  //   }
+  //   if (showPicker) document.addEventListener("mousedown", onDocClick);
+  //   return () => document.removeEventListener("mousedown", onDocClick);
+  // }, [showPicker]);
 
-  const start = range[0].startDate;
-  const end = range[0].endDate;
+  // const start = range[0].startDate;
+  // const end = range[0].endDate;
 
   // --- filter Data1 by selected range (inclusive) ---
-  const filteredData1 = useMemo(() => {
-    if (!start || !end) return Data1 || [];
-    const s = new Date(start);
-    s.setHours(0, 0, 0, 0);               // start of day
-    const e = new Date(end);
-    e.setHours(23, 59, 59, 999);          // end of day
+  // const filteredData1 = useMemo(() => {
+  //   if (!start || !end) return Data1 || [];
+  //   const s = new Date(start);
+  //   s.setHours(0, 0, 0, 0);               // start of day
+  //   const e = new Date(end);
+  //   e.setHours(23, 59, 59, 999);          // end of day
 
-    return (Data1 || [])
-      .map(storm => ({
-        ...storm,
-        points: (storm.points || []).filter(p => {
-          const t = new Date(p.timestamp).getTime();
-          return t >= s.getTime() && t <= e.getTime();
-        })
-      }))
-      .filter(storm => storm.points.length > 0);
-  }, [Data1, start, end]);
+  //   return (Data1 || [])
+  //     .map(storm => ({
+  //       ...storm,
+  //       points: (storm.points || []).filter(p => {
+  //         const t = new Date(p.timestamp).getTime();
+  //         return t >= s.getTime() && t <= e.getTime();
+  //       })
+  //     }))
+  //     .filter(storm => storm.points.length > 0);
+  // }, [Data1, start, end]);
 
   // notify parent (optional)
-  useEffect(() => {
-    if (!onDateRangeChange) return;
-    onDateRangeChange({
-      start: start ? toISODate(start) : null,
-      end: end ? toISODate(end) : null,
-    });
-  }, [start, end, onDateRangeChange]);
+  // useEffect(() => {
+  //   if (!onDateRangeChange) return;
+  //   onDateRangeChange({
+  //     start: start ? toISODate(start) : null,
+  //     end: end ? toISODate(end) : null,
+  //   });
+  // }, [start, end, onDateRangeChange]);
 
   return (
     <div style={{ position: "relative" }}>
-      {/* Top bar with a hotel.com-style Dates button */}
+      {/* Top bar with a hotel.com-style Dates button
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
         <DateButton
           start={start}
           end={end}
           onClick={() => setShowPicker(v => !v)}
         />
+      </div> */}
+
+      {/* <RainfallStormsize Data1={filteredData1} /> */}
+        <RainfallStormsize Data1={Data1} />
       </div>
-
-      {showPicker && (
-        <div
-          ref={pickerRef}
-          style={{
-            position: "absolute",
-            zIndex: 50,
-            marginTop: 8,
-            background: "white",
-            border: "1px solid #e5e7eb",
-            borderRadius: 12,
-            boxShadow: "0 10px 25px rgba(0,0,0,0.12)",
-            width: 620,
-            overflow: "hidden",
-          }}
-        >
-          <DateRange
-            locale={enUS}
-            onChange={(ranges) => {
-              setRange([ranges.selection]);
-            }}
-            moveRangeOnFirstSelection={false}
-            ranges={range}
-            months={2}
-            direction="horizontal"
-            editableDateInputs
-          />
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "0 12px 12px" }}>
-            <button
-              onClick={() => {
-                setRange([{ startDate: null, endDate: null, key: "selection" }]);
-                setShowPicker(false);
-              }}
-              style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "white" }}
-              type="button"
-            >
-              Clear
-            </button>
-            <button
-              onClick={() => setShowPicker(false)}
-              style={{ padding: "6px 10px", borderRadius: 8, border: 0, background: "black", color: "white" }}
-              type="button"
-            >
-              Done
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Your existing chart, now fed the filtered data */}
-      <RainfallStormsize Data1={filteredData1} />
-    </div>
   );
 }
 
 export default Plot1;
 
 /* ---------- small helpers ---------- */
-function DateButton({ start, end, onClick }) {
-  const label =
-    start && end ? `${fmt(start)} → ${fmt(end)}` : "Select dates";
-  return (
-    <button
-      onClick={onClick}
-      type="button"
-      style={{
-        padding: "8px 12px",
-        borderRadius: 10,
-        border: "1px solid #d1d5db",
-        background: "white",
-        cursor: "pointer",
-      }}
-    >
-      {label}
-    </button>
-  );
-}
+// function DateButton({ start, end, onClick }) {
+//   const label =
+//     start && end ? `${fmt(start)} → ${fmt(end)}` : "Select dates";
+//   return (
+//     <button
+//       onClick={onClick}
+//       type="button"
+//       style={{
+//         padding: "8px 12px",
+//         borderRadius: 10,
+//         border: "1px solid #d1d5db",
+//         background: "white",
+//         cursor: "pointer",
+//       }}
+//     >
+//       {label}
+//     </button>
+//   );
+// }
 
-function fmt(d) {
-  return new Date(d).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-  });
-}
+// function fmt(d) {
+//   return new Date(d).toLocaleDateString(undefined, {
+//     year: "numeric",
+//     month: "short",
+//     day: "2-digit",
+//   });
+// }
 
-function toISODate(d) {
-  const z = new Date(d);
-  const y = z.getFullYear();
-  const m = String(z.getMonth() + 1).padStart(2, "0");
-  const day = String(z.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
+// function toISODate(d) {
+//   const z = new Date(d);
+//   const y = z.getFullYear();
+//   const m = String(z.getMonth() + 1).padStart(2, "0");
+//   const day = String(z.getDate()).padStart(2, "0");
+//   return `${y}-${m}-${day}`;
+// }
