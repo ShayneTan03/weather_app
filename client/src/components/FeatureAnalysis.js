@@ -88,32 +88,6 @@ function FeatureRow({features}) {
     )
 }
 
-/**
- * Analyze the storm data from the points array.
- * @param {Array} points - Array of data points to analyze
- * @returns {object} - {peakRainfall, avgSize, durationHours}
- */
-// function analyzeStormData(points) {
-//     // return 0 if no data
-//     if (!points || points.length === 0) {
-//         return {peakRainfall: 0, avgSize: 0, durationHours: 0};
-//     }
-
-//     // 1. Peak Rainfall
-//     const peakRainfall = Math.max(...points.map(p => p.rainfall));
-
-//     // 2. Average Size
-//     const rawavgSize = points.reduce((sum, p) => sum + p.size, 0) / points.length;
-//     const avgSize = Math.round(rawavgSize * 100) / 100; // round to 2 decimal places
-
-//     // 3. Duration in hours
-//     const startTime = new Date(points[0].timestamp);
-//     const endTime = new Date(points[points.length - 1].timestamp);
-//     const durationHours = Math.abs(endTime - startTime) / (1000 * 60 * 60); // convert ms to hours
-
-//     // return the analyzed metrics
-//     return {peakRainfall, avgSize, durationHours};
-// }
 
 /**
  * Actual Component for Storm Feature Analysis
