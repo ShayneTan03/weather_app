@@ -13,13 +13,13 @@ import Plot3 from "./Plot3";
 import StormFeatureAnalysis from "./FeatureAnalysis";
 import GlobalDateRangePicker from "./DateRange";
 import { getPlot1Data, getPlot2Data, getPlot3Data } from "../api/fetchPlots";
-import { getWeatherObs, getWeatherStations, getStorms } from '../api/fetchApi';
-import {toISODate} from "../utils/math";
+import { getWeatherObs, getWeatherStations, getStorms } from "../api/fetchApi";
+import { toISODate } from "../utils/math";
 
 // Final API imports
-// import { 
-//     getPlot1Data, 
-//     getPlot2Data, 
+// import {
+//     getPlot1Data,
+//     getPlot2Data,
 //     getPlot3Data,
 //     getRadarMapData,
 //     getClientReadings
@@ -30,24 +30,15 @@ import {toISODate} from "../utils/math";
  */
 function Dashboard() {
     const [activeView, setActiveView] = useState("map");
-
-    /**
-     * set date range here to determine what filter to use on the readingss
-     */
-    const [dateRange, setDateRange] = useState({
-        start: new Date("2025-10-05T00:00:00Z"),
-        end: new Date("2025-11-31T23:59:59Z"),
-    });
-
     /**
      * state for date range picker
      * default start date : D-5 from today
      */
     const defaultDate = new Date();
     defaultDate.setDate(defaultDate.getDate() - 5); // 5 days ago
-    defaultDate.setHours(0,0,0,0); // set to start of day
+    defaultDate.setHours(0, 0, 0, 0); // set to start of day
     const [range, setRange] = useState([
-        { startDate : defaultDate, endDate : defaultDate, key : "selection"}
+        { startDate: defaultDate, endDate: defaultDate, key: "selection" },
     ]); // default time range
 
     /**
@@ -56,17 +47,15 @@ function Dashboard() {
     const [fullStormData, setFullStormData] = useState(null);
     const [plot1Data, setPlot1Data] = useState(null);
     const [plot2Data, setPlot2Data] = useState(null);
-    const [plot3Data, setPlot3Data] = useState(null); 
+    const [plot3Data, setPlot3Data] = useState(null);
     const [apiLoading, setApiLoading] = useState(false);
     const [apiError, setApiError] = useState(null);
 
-
     /**
      * API CALL HERE
-     * fetch storm data whenever date range changes 
+     * fetch storm data whenever date range changes
      */
     useEffect(() => {
-
         const { startDate, endDate } = range[0];
 
         if (!startDate || !endDate) return; // do nothing if dates are invalid
@@ -95,7 +84,6 @@ function Dashboard() {
                 setPlot1Data(p1);
                 setPlot2Data(p2);
                 setPlot3Data(p3);
-
             } catch (error) {
                 console.error("Failed to load plot data:", error); // for debugging
                 setApiError(error.message || "Failed to load plot data");
@@ -111,7 +99,6 @@ function Dashboard() {
         loadPlotData();
     }, [range]); // Runs whenever date range changes
 
-                    
     /**
      * state for passing to FeatureAnalysis component (stormSummary~stormEventLog)
      */
@@ -122,50 +109,68 @@ function Dashboard() {
 
     const [readings, setReadings] = useState(null);
     const [storms, setStorms] = useState(null);
+    const [metrics, setMetrics] = useState(null);
 
     // any asynchronous logic should be handled within useEffect with a nested fn
     // this will load the necessary data before loading the components of the web page
     useEffect(() => {
         async function loadData() {
             try {
-                // Fetch actual weather observations and stations from the API
-
-                // Use global date range picker values
                 const { startDate, endDate } = range[0];
                 const endOfDay = new Date(endDate);
                 endOfDay.setHours(23, 59, 59, 999);
 
-                // Calculate metrics using the fetched data and current dateRange
-                // const metrics = getMetrics(observations, dateRange);
-
                 const stations = await getWeatherStations();
                 const observations = await getWeatherObs();
-                const storms = await getStorms();
-                const metrics = getMetrics(observations, {start: startDate, end: endOfDay});
+                const stormsData = await getStorms();
 
-                // Map stations to readings with metrics
-                console.log(metrics);
-                const readingMap = stations.map((station) => {
-                    const stationMetrics = metrics[station.station_id] || {};
-                    return {
-                        ...station, // include existing station fields
-                        humidity: stationMetrics.humidity_pct ?? null,
-                        rainfall: stationMetrics.rainfall_mm ?? null,
-                        wind_speed: stationMetrics.wind_speed_knots ?? null,
-                        wind_direction:
-                            stationMetrics.wind_direction_degrees ?? null,
-                        temperature: stationMetrics.temperature_c ?? null,
-                    };
+                const metrics = getMetrics(observations, {
+                    start: startDate,
+                    end: endOfDay,
                 });
 
-                setReadings(readingMap); // Renew state with new readings
-                setStorms(storms);
+                const readingMap = stations
+                    .map((station) => {
+                        const stationMetrics =
+                            metrics[station.station_id] || {};
+                        const reading = {
+                            ...station,
+                            humidity: stationMetrics.humidity_pct ?? null,
+                            rainfall: stationMetrics.rainfall_mm ?? null,
+                            wind_speed: stationMetrics.wind_speed ?? null,
+                            wind_direction:
+                                stationMetrics.wind_direction ?? null,
+                            temperature: stationMetrics.temperature ?? null,
+                        };
+                        return reading;
+                    })
+                    // keep only stations with at least one non-null metric
+                    .filter(
+                        (r) =>
+                            r.humidity !== null ||
+                            r.rainfall !== null ||
+                            r.wind_speed !== null ||
+                            r.wind_direction !== null ||
+                            r.temperature !== null
+                    );
+
+                const filteredStorms = stormsData.filter((storm) => {
+                    const stormStart = new Date(storm.start_time);
+                    const stormEnd = new Date(storm.end_time);
+                    return stormStart >= startDate && stormEnd <= endOfDay;
+                });
+
+                setReadings(readingMap);
+                setMetrics(metrics);
+                setStorms(filteredStorms);
             } catch (err) {
                 console.error(err.message);
             }
         }
+
         loadData();
-    }, [range]); // Runs whenever date range changes
+    }, [range]);
+    // Runs whenever date range changes
     // react checks if the values in the arr of dependencies changes
     // reruns if there's any change
     // if empty arr it runs once
@@ -197,40 +202,82 @@ function Dashboard() {
     ];
     // data for plot2 (each storm is a single averaged point)
     const Data2 = [
-        { stormId: "STORM_C", rainfall: 4.3, windspeed: 20.4, size: 102, intensity: 5.6 },
-        { stormId: "STORM_D", rainfall: 5.3, windspeed: 28.0, size: 150, intensity: 7.8 },
-        { stormId: "STORM_E", rainfall: 6.1, windspeed: 33.7, size: 178, intensity: 8.6 },
-        { stormId: "STORM_F", rainfall: 3.9, windspeed: 18.5, size: 88,  intensity: 4.7 },
-        { stormId: "STORM_G", rainfall: 2.7, windspeed: 12.9, size: 60,  intensity: 3.2 },
-        { stormId: "STORM_H", rainfall: 7.4, windspeed: 41.2, size: 210, intensity: 9.3 },
-        { stormId: "STORM_I", rainfall: 4.9, windspeed: 24.6, size: 125, intensity: 6.1 },
+        {
+            stormId: "STORM_C",
+            rainfall: 4.3,
+            windspeed: 20.4,
+            size: 102,
+            intensity: 5.6,
+        },
+        {
+            stormId: "STORM_D",
+            rainfall: 5.3,
+            windspeed: 28.0,
+            size: 150,
+            intensity: 7.8,
+        },
+        {
+            stormId: "STORM_E",
+            rainfall: 6.1,
+            windspeed: 33.7,
+            size: 178,
+            intensity: 8.6,
+        },
+        {
+            stormId: "STORM_F",
+            rainfall: 3.9,
+            windspeed: 18.5,
+            size: 88,
+            intensity: 4.7,
+        },
+        {
+            stormId: "STORM_G",
+            rainfall: 2.7,
+            windspeed: 12.9,
+            size: 60,
+            intensity: 3.2,
+        },
+        {
+            stormId: "STORM_H",
+            rainfall: 7.4,
+            windspeed: 41.2,
+            size: 210,
+            intensity: 9.3,
+        },
+        {
+            stormId: "STORM_I",
+            rainfall: 4.9,
+            windspeed: 24.6,
+            size: 125,
+            intensity: 6.1,
+        },
     ];
 
     // Dummy data for feature analysis component - will be replaced by plot3Data
     const Data3 = [
-    {
-        storm_id: "STORM-A-2025",
-        start_time: "2025-10-01T10:00:00Z",
-        end_time: "2025-10-01T12:00:00Z",
-        duration: 120, 
-        avg_area: 150.5,
-        max_area: 300.0,
-        avg_dbz: 40.2,
-        max_dbz: 55.0,
-        total_distance_traveled: 25.5 // km
-    },
-    {
-        storm_id: "STORM-B-2025",
-        start_time: "2025-10-02T14:00:00Z",
-        end_time: "2025-10-02T15:30:00Z",
-        duration: 90,
-        avg_area: 120.0,
-        max_area: 250.0,
-        avg_dbz: 38.0,
-        max_dbz: 50.0,
-        total_distance_traveled: 15.0
-    }
-];
+        {
+            storm_id: "STORM-A-2025",
+            start_time: "2025-10-01T10:00:00Z",
+            end_time: "2025-10-01T12:00:00Z",
+            duration: 120,
+            avg_area: 150.5,
+            max_area: 300.0,
+            avg_dbz: 40.2,
+            max_dbz: 55.0,
+            total_distance_traveled: 25.5, // km
+        },
+        {
+            storm_id: "STORM-B-2025",
+            start_time: "2025-10-02T14:00:00Z",
+            end_time: "2025-10-02T15:30:00Z",
+            duration: 90,
+            avg_area: 120.0,
+            max_area: 250.0,
+            avg_dbz: 38.0,
+            max_dbz: 50.0,
+            total_distance_traveled: 15.0,
+        },
+    ];
 
     const stormClassification = [
         { name: "Light (<5 dBZ)", value: 35, color: "#22c55e" },
@@ -248,25 +295,60 @@ function Dashboard() {
         hole: 0.5,
     };
 
+    // Helper to compute average
     const avg = (key) => {
-        if (!readings || readings.length === 0) return 0;
-        return readings
-            .map(r => Number(r[key]) || 0)
-            .reduce((a, b) => a + b, 0) / readings.length;
+        if (!metrics || typeof metrics !== "object") return null;
+
+        const metricsArray = Object.values(metrics); // convert object to array
+        if (metricsArray.length === 0) return null;
+
+        const values = metricsArray
+            .map((r) => r[key])
+            .filter((v) => v !== null && v !== undefined && !isNaN(v));
+
+        if (values.length === 0) return null;
+
+        return values.reduce((a, b) => a + b, 0) / values.length;
     };
 
-    const metrics = useMemo(() => {
-    if (!readings || readings.length === 0) return [];
+    // Memoized metrics for MetricRow
+    const avgMetrics = useMemo(() => {
+        if (!metrics || typeof metrics !== "object") return [];
 
-    return [
-        { title: "Temperature", reading: avg("temperature"), icon: <ArrowDown className="text-danger" />, unit: "°C" },
-        { title: "Rainfall", reading: avg("rainfall_mm"), icon: <ArrowDown className="text-danger" />, unit: "mm" },
-        { title: "Humidity", reading: avg("humidity_pct"), icon: <ArrowDown className="text-danger" />, unit: "%" },
-        { title: "Wind Speed", reading: avg("wind_speed_knots"), icon: <ArrowDown className="text-danger" />, unit: "knots" },
-        { title: "Wind Direction", reading: avg("wind_direction_degrees"), icon: <ArrowDown className="text-danger" />, unit: "°" },
-    ];
-    }, [readings, dateRange]);
-    
+        return [
+            {
+                title: "Temperature",
+                reading: avg("temperature"),
+                icon: <ArrowDown className="text-danger" />,
+                unit: "°C",
+            },
+            {
+                title: "Rainfall",
+                reading: avg("rainfall_mm"),
+                icon: <ArrowDown className="text-danger" />,
+                unit: "mm",
+            },
+            {
+                title: "Humidity",
+                reading: avg("humidity_pct"),
+                icon: <ArrowDown className="text-danger" />,
+                unit: "%",
+            },
+            {
+                title: "Wind Speed",
+                reading: avg("wind_speed"),
+                icon: <ArrowDown className="text-danger" />,
+                unit: "knots",
+            },
+            {
+                title: "Wind Direction",
+                reading: avg("wind_direction"),
+                icon: <ArrowDown className="text-danger" />,
+                unit: "°",
+            },
+        ];
+    }, [metrics, range]);
+
     return (
         <Container fluid className="py-4">
             <Header
@@ -285,7 +367,7 @@ function Dashboard() {
                 setRange={setRange}
                 activeShortcut={activeShortcut}
                 setActiveShortcut={setActiveShortcut}
-                /> 
+            />
 
             <div className="my-4">
                 <Navigation
@@ -297,7 +379,7 @@ function Dashboard() {
             <div className="mt-4">
                 {activeView === "map" && storms && (
                     <>
-                        <MetricRow metrics={metrics} />
+                        <MetricRow metrics={avgMetrics} />
                         <Row className="justify-content-center mb-4 mt-5">
                             <Col xs={12} md={8}>
                                 <RadarMap readings={readings} range={range} />
@@ -313,40 +395,48 @@ function Dashboard() {
             </div>
 
             <div className="mt-4">
-            {activeView === 'plot' && (
-                <Col>
+                {activeView === "plot" && (
+                    <Col>
+                        <Row className="g-4">
+                            {/* Handle loading and error states */}
+                            {apiLoading && <div>Loading charts...</div>}
+                            {apiError && (
+                                <div style={{ color: "red" }}>
+                                    Error: {apiError}
+                                </div>
+                            )}
+                            {/* Display Feature Analysis */}
+                            {/* Replace Data3 with actual StormData when API is ready */}
+                            <StormFeatureAnalysis storms={storms} />
 
-                <Row className="g-4"> 
-                    {/* Handle loading and error states */}
-                    {apiLoading && <div>Loading charts...</div>}
-                    {apiError && <div style={{ color: 'red' }}>Error: {apiError}</div>}
-                    {/* Display Feature Analysis */}
-                    {/* Replace Data3 with actual StormData when API is ready */}
-                    <StormFeatureAnalysis storms={storms} />
-                    
-                    {/* Wrap the Plot1 with Col and Card for cleaner layout */}
-                    <Col xs={12}>
-                        <Card>
-                            <Card.Body>
-                                {/* Display Plot1 only if data is available */}
-                                {plot1Data && <Plot1 Data1 = {plot1Data} />}
-                            </Card.Body>
-                        </Card>
-                    </Col>
-                </Row>
+                            {/* Wrap the Plot1 with Col and Card for cleaner layout */}
+                            <Col xs={12}>
+                                <Card>
+                                    <Card.Body>
+                                        {/* Display Plot1 only if data is available */}
+                                        {plot1Data && (
+                                            <Plot1 Data1={plot1Data} />
+                                        )}
+                                    </Card.Body>
+                                </Card>
+                            </Col>
+                        </Row>
 
-                <Row className="g-4 mb-4">
-                    <Col lg={6}> 
-                        <Card>
-                            <Card.Body>
-                                <Card.Title>
-                                    Storm Features Against Rainfall and Wind Speed
-                                </Card.Title>
-                                {/* Display Plot2 only if data is available */}
-                                {plot2Data && <Plot2 Data2 = {plot2Data} />}
-                            </Card.Body>
-                        </Card>
-                    </Col>
+                        <Row className="g-4 mb-4">
+                            <Col lg={6}>
+                                <Card>
+                                    <Card.Body>
+                                        <Card.Title>
+                                            Storm Features Against Rainfall and
+                                            Wind Speed
+                                        </Card.Title>
+                                        {/* Display Plot2 only if data is available */}
+                                        {plot2Data && (
+                                            <Plot2 Data2={plot2Data} />
+                                        )}
+                                    </Card.Body>
+                                </Card>
+                            </Col>
 
                             <Col lg={6}>
                                 <Card>

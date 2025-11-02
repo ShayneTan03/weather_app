@@ -12,7 +12,7 @@ import { FaPlay, FaPause, FaForward, FaBackward } from "react-icons/fa";
 import { getMapPointers, singaporeCoords } from "../constants/map";
 import { isStormCandidate } from "../utils/math";
 import { getStormsAtTimestamp } from "../api/fetchApi";
-import { formatTimestamp } from "../utils/math";
+import { formatTimestamp, generateTimeline } from "../utils/math";
 
 // helper to color code dBZ intensity
 function getDbzColor(dbz) {
@@ -22,95 +22,104 @@ function getDbzColor(dbz) {
 }
 
 const singaporeBounds = {
-  north: 1.4700,   // northernmost latitude
-  south: 1.1300,   // southernmost latitude
-  east: 104.0300,  // easternmost longitude
-  west: 103.6100   // westernmost longitude
+    north: 1.47, // northernmost latitude
+    south: 1.13, // southernmost latitude
+    east: 104.03, // easternmost longitude
+    west: 103.61, // westernmost longitude
 };
 
-
 function RadarOverlay({ selectedTime }) {
-  const [stormFrames, setStormFrames] = useState([]);
-  const [loading, setLoading] = useState(false);
+    const [stormFrames, setStormFrames] = useState([]);
+    const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    let isCancelled = false;
+    useEffect(() => {
+        let isCancelled = false;
 
-    const fetchStorms = async () => {
-      setLoading(true);
-      try {
-        const timestampStr = formatTimestamp(new Date(selectedTime));
-        const storms = await getStormsAtTimestamp({ timestamp: timestampStr });
-        console.log(timestampStr, storms)
-        if (!isCancelled) {
-          const frames = storms.flatMap(storm => {
-            const start = new Date(storm.start_time).getTime();
-            const end = new Date(storm.end_time).getTime();
-            const n = storm.n_frames;
+        const fetchStorms = async () => {
+            setLoading(true);
+            try {
+                const timestampStr = formatTimestamp(new Date(selectedTime));
+                const storms = await getStormsAtTimestamp({
+                    timestamp: timestampStr,
+                });
+                if (!isCancelled) {
+                    const frames = storms.flatMap((storm) => {
+                        const start = new Date(storm.start_time).getTime();
+                        const end = new Date(storm.end_time).getTime();
+                        const n = storm.n_frames;
 
-            return Array.from({ length: n }, (_, i) => {
-              const t = start + (i / (n - 1)) * (end - start);
-              return {
-                timestamp: new Date(t),
-                centroid_x: storm.anchor_x_list[i],
-                centroid_y: storm.anchor_y_list[i],
-                area: storm.area_list[i],
-                avg_dbz: storm.avg_dbz,
-                storm_id: storm.storm_id
-              };
-            });
-          });
+                        return Array.from({ length: n }, (_, i) => {
+                            const t = start + (i / (n - 1)) * (end - start);
+                            return {
+                                timestamp: new Date(t),
+                                centroid_x: storm.anchor_x_list[i],
+                                centroid_y: storm.anchor_y_list[i],
+                                area: storm.area_list[i],
+                                avg_dbz: storm.avg_dbz,
+                                storm_id: storm.storm_id,
+                            };
+                        });
+                    });
 
-          setStormFrames(frames);
-        }
-      } catch (err) {
-        if (!isCancelled) setStormFrames([]);
-      } finally {
-        if (!isCancelled) setLoading(false);
-      }
-    };
+                    setStormFrames(frames);
+                }
+            } catch (err) {
+                if (!isCancelled) setStormFrames([]);
+            } finally {
+                if (!isCancelled) setLoading(false);
+            }
+        };
 
-    fetchStorms();
+        fetchStorms();
 
-    return () => { isCancelled = true; };
-  }, [selectedTime]);
+        return () => {
+            isCancelled = true;
+        };
+    }, [selectedTime]);
 
-  if (loading) {
-    return <div>Loading storms for {new Date(selectedTime).toLocaleString()}...</div>;
-  }
-
-  if (!stormFrames.length) return null;
-
-  const framesToRender = stormFrames.filter(
-    f => f.timestamp.getTime() <= new Date(selectedTime).getTime()
-  );
-
-  console.log(framesToRender);
-
-  return (
-    <>
-      {framesToRender.map((f, idx) => (
-        <Circle
-          key={`${f.storm_id}-${idx}`}
-          center={[singaporeBounds.south + (singaporeBounds.north - singaporeBounds.south) * (1 - f.centroid_y / 100), 
-          singaporeBounds.west + (singaporeBounds.east - singaporeBounds.west) * (f.centroid_x / 100)]}
-          radius={f.area*100} // adjust scale
-          fillColor={getDbzColor(f.avg_dbz)}
-          fillOpacity={0.4}
-          stroke={false}
-        >
-          <Tooltip>
+    if (loading) {
+        return (
             <div>
-              <div>Storm ID: {f.storm_id}</div>
-              <div>Area: {f.area}</div>
-              <div>dBZ: {f.avg_dbz}</div>
-              <div>Time: {f.timestamp.toLocaleString()}</div>
+                Loading storms for {new Date(selectedTime).toLocaleString()}...
             </div>
-          </Tooltip>
-        </Circle>
-      ))}
-    </>
-  );
+        );
+    }
+
+    if (!stormFrames.length) return null;
+
+    const framesToRender = stormFrames.filter(
+        (f) => f.timestamp.getTime() <= new Date(selectedTime).getTime()
+    );
+    return (
+        <>
+            {framesToRender.map((f, idx) => (
+                <Circle
+                    key={`${f.storm_id}-${idx}`}
+                    center={[
+                        singaporeBounds.south +
+                            (singaporeBounds.north - singaporeBounds.south) *
+                                (1 - f.centroid_y / 100),
+                        singaporeBounds.west +
+                            (singaporeBounds.east - singaporeBounds.west) *
+                                (f.centroid_x / 100),
+                    ]}
+                    radius={f.area * 100} // adjust scale
+                    fillColor={getDbzColor(f.avg_dbz)}
+                    fillOpacity={0.4}
+                    stroke={false}
+                >
+                    <Tooltip>
+                        <div>
+                            <div>Storm ID: {f.storm_id}</div>
+                            <div>Area: {f.area}</div>
+                            <div>dBZ: {f.avg_dbz}</div>
+                            <div>Time: {f.timestamp.toLocaleString()}</div>
+                        </div>
+                    </Tooltip>
+                </Circle>
+            ))}
+        </>
+    );
 }
 
 function SingaporeMap({ readings, selectedOptions, selectedTime }) {
@@ -160,14 +169,14 @@ function SingaporeMap({ readings, selectedOptions, selectedTime }) {
                 {MAP_POINTERS.map((v) =>
                     v.display
                         ? readings.map((r) => {
-                              const value =
-                                  r[v.key] === "NA" ? 0 : Number(r[v.key]);
-
+                              const safeVal = Number.isFinite(Number(r[v.key]))
+                                  ? Number(r[v.key])
+                                  : 0;
                               return (
                                   <Circle
                                       key={`${v.key}-${r.station_id}`}
                                       center={[r.latitude, r.longitude]}
-                                      radius={value * v.scale}
+                                      radius={safeVal * v.scale}
                                       fillColor={v.color}
                                       fillOpacity={0.3}
                                       stroke={false}
@@ -212,7 +221,6 @@ export function DetectedStorms({ storms }) {
     if (!storms) {
         return <div>Loading storm data...</div>;
     }
-    console.log(storms)
     return (
         <>
             <Card className="h-100">
@@ -253,7 +261,8 @@ export function DetectedStorms({ storms }) {
                                         {storm.avg_centroid_y}){" "}
                                     </div>
                                     <div>
-                                        {" "}Duration: {storm.duration} minutes{" "}
+                                        {" "}
+                                        Duration: {storm.duration} minutes{" "}
                                     </div>
                                 </div>
                             </div>
@@ -274,46 +283,18 @@ function RadarMap({ readings, range }) {
         temperature: false,
     });
 
-    const [sliderValue, setSliderValue] = useState(0); // slider will be used to select the date
-
     const [isPlaying, setIsPlaying] = useState(false);
     const [playbackSpeed, setPlaybackSpeed] = useState(2); // multiplier
     const [selectedTime, setSelectedTime] = useState(null);
-    /**
-     *
-     * Hourly = 3 days of data available
-     * Daily = 1 week of data available
-     * Monthly = 1 month of data available?
-     */
-
-    // need to make this dynamic for hourly, daily and monthly
-    const generateTimeline = (rawStart, rawEnd) => {
-        const times = [];
-        const startMs = new Date(rawStart).getTime();
-        const endMs = new Date(rawEnd).getTime();
-
-        const msPerHour = 1000 * 60 * 60;
-        const start = new Date(Math.ceil(startMs / msPerHour) * msPerHour);
-        const end = new Date(Math.floor(endMs / msPerHour) * msPerHour);
-
-        let current = new Date(start);
-
-        while (current <= end) {
-            times.push(current.toISOString());
-            current.setHours(current.getHours() + 1); //increment by 1 hour
-        }
-        return times;
-    };
-
-    // get start and end date from range picker
     const { startDate, endDate } = range[0];
     const endOfDay = new Date(endDate);
     endOfDay.setHours(23, 59, 59, 999);
 
     // Set default start and end if API returns null
-    const start = startDate ? startDate.toISOString() : new Date().toISOString();
+    const start = startDate
+        ? startDate.toISOString()
+        : new Date().toISOString();
     const end = endOfDay ? endOfDay.toISOString() : new Date().toISOString();
-
     const timeline = generateTimeline(start, end);
     const currentIndex = timeline.findIndex((t) => t === selectedTime);
 
@@ -331,6 +312,15 @@ function RadarMap({ readings, range }) {
 
         return () => clearInterval(interval); // clear and reset if off
     }, [isPlaying, playbackSpeed]);
+
+    useEffect(() => {
+        if (range && range[0]) {
+            const { startDate, endDate } = range[0];
+            if (startDate) {
+                setSelectedTime(new Date(startDate).toISOString());
+            }
+        }
+    }, [range]);
 
     const handleSliderChange = (e) => {
         setSelectedTime(timeline[Number(e.target.value)]);
@@ -439,13 +429,6 @@ function RadarMap({ readings, range }) {
                                 label="Temperature"
                                 name="temperature"
                                 checked={selectedOptions.temperature}
-                                onChange={handleOption}
-                            />
-                            <Form.Check
-                                type="checkbox"
-                                label="Storm Intensity"
-                                name="stormIntensity"
-                                checked={selectedOptions.stormIntensity}
                                 onChange={handleOption}
                             />
                         </div>
