@@ -11,10 +11,23 @@ import Plot1 from "./Plot1";
 import Plot2 from "./Plot2";
 import StormFeatureAnalysis from "./FeatureAnalysis";
 import GlobalDateRangePicker from "./DateRange";
-import {getWeatherObs, getWeatherStations} from "../api/fetchApi";
+
+// Final API imports
+// import { 
+//     getPlot1Data, 
+//     getPlot2Data, 
+//     getPlot3Data,
+//     getRadarMapData,
+//     getClientReadings
+// } from '../api/fetchApi';
+
+// temporary import until API is ready
+import { getPlot1Data, display_join as getPlot2Data } from "../api/fetchPlots";
+import { getWeatherObs, getWeatherStations } from '../api/fetchApi';
 import { useMemo } from "react";
 import { de } from "date-fns/locale";
 import { set } from "date-fns";
+
 
 /**
  * Helper function for date formatting for API call
@@ -55,9 +68,15 @@ function Dashboard() {
     ]); // default time range
 
     /**
-     * state that contains full storm data fetched from backend
+     * state that contains storm data fetched from API
      */
     const [fullStormData, setFullStormData] = useState(null);
+    const [plot1Data, setPlot1Data] = useState(null);
+    const [plot2Data, setPlot2Data] = useState(null);
+    // const [plot3Data, setPlot3Data] = useState(null); 
+    const [apiLoading, setApiLoading] = useState(false);
+    const [apiError, setApiError] = useState(null);
+
 
     /**
      * API CALL HERE
@@ -67,32 +86,48 @@ function Dashboard() {
 
         const { startDate, endDate } = range[0];
 
-        if (startDate && endDate) {
+        if (!startDate || !endDate) return; // do nothing if dates are invalid
 
-            const fetchStormData = async () => {
+        const loadPlotData = async () => {
+            setApiLoading(true);
+            setApiError(null);
 
-                const apiURL = `/api/{name of the call}?start=${toISODate(startDate)}&end=${toISODate(endDate)}`;
-
-                try {
-                    console.log('Fetching storm data from:', apiURL); // for debugging
-
-                    const response = await fetch(apiURL);
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    const data = await response.json();
-
-                    // Update the state with fetched JSON data
-                    setFullStormData(data);
-                } catch (error) {
-                    console.error('Failed to fetch storm data:', error);
-                    setFullStormData(null); // reset the state when error occurs
-                }
+            // parameters for API call
+            const params = {
+                start: startDate.toISOString(),
+                end: endDate.toISOString(),
             };
 
-            fetchStormData();
-        }
-    }, [range]); // This useEffect runs whenever 'range' changes
+            try {
+                // Call 3 APIs at once using Promise.all
+                // const [p1, p2, p3] = await Promise.all([
+
+                // Call 2 APIs at once using Promise.all
+                const [p1, p2] = await Promise.all([
+                    getPlot1Data(params),
+                    getPlot2Data(params),
+                    // getPlot3Data(params),
+                ]);
+
+                setPlot1Data(p1);
+                setPlot2Data(p2);
+                // setPlot3Data(p3);
+
+            } catch (error) {
+                console.error("Failed to load plot data:", error); // for debugging
+                setApiError(error.message || "Failed to load plot data");
+                // reset data on error
+                setPlot1Data(null);
+                setPlot2Data(null);
+                // setPlot3Data(null);
+            } finally {
+                setApiLoading(false);
+            }
+        };
+
+        loadPlotData();
+    }, [range]); // Runs whenever date range changes
+
                     
     /**
      * state for passing to FeatureAnalysis component (stormSummary~stormEventLog)
@@ -374,21 +409,22 @@ function Dashboard() {
                 <Col>
 
                 <Row className="g-4"> 
-                        {/* Display Feature Analysis */}
-                        {<StormFeatureAnalysis stormSummaryData={Data3} />}
-
-                        {/* use fullStormData when API is ready */}
-                        {/* {<StormFeatureAnalysis allData={fullStormData} />} */} 
-                        
-                        {/* Wrap the Plot1 with Col and Card for cleaner layout */}
-                        <Col xs={12}>
-                            <Card>
-                                <Card.Body>
-                                    {/* Display Plot1 */}
-                                    <Plot1 Data1={Data1} />
-                                </Card.Body>
-                            </Card>
-                        </Col>
+                    {/* Handle loading and error states */}
+                    {apiLoading && <div>Loading charts...</div>}
+                    {apiError && <div style={{ color: 'red' }}>Error: {apiError}</div>}
+                    {/* Display Feature Analysis */}
+                    {/* Replace Data3 with actual StormData when API is ready */}
+                    <StormFeatureAnalysis stormSummaryData={Data3} />
+                    
+                    {/* Wrap the Plot1 with Col and Card for cleaner layout */}
+                    <Col xs={12}>
+                        <Card>
+                            <Card.Body>
+                                {/* Display Plot1 only if data is available */}
+                                {plot1Data && <Plot1 Data1 = {plot1Data} />}
+                            </Card.Body>
+                        </Card>
+                    </Col>
                 </Row>
 
                 <Row className="g-4 mb-4">
@@ -398,8 +434,8 @@ function Dashboard() {
                                 <Card.Title>
                                     Storm Features Against Rainfall and Wind Speed
                                 </Card.Title>
-                                {/* Display Plot2 */}
-                                <Plot2 Data2 = {Data2} />
+                                {/* Display Plot2 only if data is available */}
+                                {plot2Data && <Plot2 Data2 = {plot2Data} />}
                             </Card.Body>
                         </Card>
                     </Col>

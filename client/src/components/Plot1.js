@@ -157,7 +157,7 @@ export function RainfallStormsize({ Data1 }) {
     );
 }
 
-function Plot1({ stormData }) {
+function Plot1({ Data1 }) {
   // // --- date-range dropdown state ---
   // const [showPicker, setShowPicker] = useState(false);
   // const [range, setRange] = useState([
@@ -218,7 +218,7 @@ function Plot1({ stormData }) {
       </div> */}
 
       {/* <RainfallStormsize Data1={filteredData1} /> */}
-        <RainfallStormsize stormData={stormData} />
+        <RainfallStormsize Data1={Data1} />
       </div>
   );
 }
