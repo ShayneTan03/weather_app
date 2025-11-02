@@ -75,9 +75,8 @@ docker compose up --build
 
 ```
 ├── backend/                # Core backend modules
-├── frontend/               # 
 ├── dockerisation/          # Multi-container orchestration
-├── client/                 # 
+├── client/                 # React application
 └── README.md               # This file
 ```
 
@@ -131,4 +130,4 @@ This project is developed for academic purposes as part of DSA3101-2510.
 
 ---
 
-For questions or issues, please refer to the project wiki or contact the development team.
+For questions or issues, please refer to the [project wiki](https://dsa3101.nus-dsds.org/doku.php?id=projectnamespace20:home) or contact the development team.
