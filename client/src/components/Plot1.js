@@ -27,6 +27,10 @@ function sampleEvery(points, intervalMin = 30) {
 }
 
 export function SummarizeStorms(storms) {
+  /**
+   * Summarizes the storm data into full and sampled time series for rainfall and size.
+   * Sampling is done at 30-minute intervals to reduce the number of points plotted.
+   */
   return storms.map((storm) => {
     const pts = storm.points ?? [];
     const sampled = sampleEvery(pts, 30);
@@ -48,6 +52,9 @@ export function SummarizeStorms(storms) {
 }
 
 export function RainfallStormsize({ Data1 }) {
+  /**
+   * Plots rainfall and storm size over time using Plotly.
+   */
   const summary = SummarizeStorms(Data1);
 
   const globalMaxSize = Math.max(
@@ -160,65 +167,8 @@ export function RainfallStormsize({ Data1 }) {
 }
 
 function Plot1({ Data1 }) {
-  // // --- date-range dropdown state ---
-  // const [showPicker, setShowPicker] = useState(false);
-  // const [range, setRange] = useState([
-  //   { startDate: null, endDate: null, key: "selection" },
-  // ]);
-  // const pickerRef = useRef(null);
-
-  // // close picker on outside click
-  // useEffect(() => {
-  //   function onDocClick(e) {
-  //     if (!pickerRef.current) return;
-  //     if (!pickerRef.current.contains(e.target)) setShowPicker(false);
-  //   }
-  //   if (showPicker) document.addEventListener("mousedown", onDocClick);
-  //   return () => document.removeEventListener("mousedown", onDocClick);
-  // }, [showPicker]);
-
-  // const start = range[0].startDate;
-  // const end = range[0].endDate;
-
-  // --- filter Data1 by selected range (inclusive) ---
-  // const filteredData1 = useMemo(() => {
-  //   if (!start || !end) return Data1 || [];
-  //   const s = new Date(start);
-  //   s.setHours(0, 0, 0, 0);               // start of day
-  //   const e = new Date(end);
-  //   e.setHours(23, 59, 59, 999);          // end of day
-
-  //   return (Data1 || [])
-  //     .map(storm => ({
-  //       ...storm,
-  //       points: (storm.points || []).filter(p => {
-  //         const t = new Date(p.timestamp).getTime();
-  //         return t >= s.getTime() && t <= e.getTime();
-  //       })
-  //     }))
-  //     .filter(storm => storm.points.length > 0);
-  // }, [Data1, start, end]);
-
-  // notify parent (optional)
-  // useEffect(() => {
-  //   if (!onDateRangeChange) return;
-  //   onDateRangeChange({
-  //     start: start ? toISODate(start) : null,
-  //     end: end ? toISODate(end) : null,
-  //   });
-  // }, [start, end, onDateRangeChange]);
-
   return (
     <div style={{ position: "relative" }}>
-      {/* Top bar with a hotel.com-style Dates button
-      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
-        <DateButton
-          start={start}
-          end={end}
-          onClick={() => setShowPicker(v => !v)}
-        />
-      </div> */}
-
       {/* <RainfallStormsize Data1={filteredData1} /> */}
         <RainfallStormsize Data1={Data1} />
       </div>
@@ -226,40 +176,3 @@ function Plot1({ Data1 }) {
 }
 
 export default Plot1;
-
-/* ---------- small helpers ---------- */
-// function DateButton({ start, end, onClick }) {
-//   const label =
-//     start && end ? `${fmt(start)} → ${fmt(end)}` : "Select dates";
-//   return (
-//     <button
-//       onClick={onClick}
-//       type="button"
-//       style={{
-//         padding: "8px 12px",
-//         borderRadius: 10,
-//         border: "1px solid #d1d5db",
-//         background: "white",
-//         cursor: "pointer",
-//       }}
-//     >
-//       {label}
-//     </button>
-//   );
-// }
-
-// function fmt(d) {
-//   return new Date(d).toLocaleDateString(undefined, {
-//     year: "numeric",
-//     month: "short",
-//     day: "2-digit",
-//   });
-// }
-
-// function toISODate(d) {
-//   const z = new Date(d);
-//   const y = z.getFullYear();
-//   const m = String(z.getMonth() + 1).padStart(2, "0");
-//   const day = String(z.getDate()).padStart(2, "0");
-//   return `${y}-${m}-${day}`;
-// }

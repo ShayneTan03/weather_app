@@ -1,18 +1,27 @@
 import Plot from "react-plotly.js";
 
 function getIntensityCategory(intensity) {
+    /**
+     * Helper function 1: Categorizes storm intensity into defined ranges
+     */
     if (intensity < 66) return '64-66 dBZ';
     if (intensity < 68) return '66-68 dBZ';
     return '68-70 dBZ';
 }
 
 function getIntensityColor(intensity) {
+    /**
+     * Helper function 2: Maps storm intensity to specific colors
+     */
     if (intensity < 66) return '#22c55e';  // 64-66 dBZ - Green
     if (intensity < 68) return '#eab308';  // 66-68 dBZ - Yellow
     return                    '#ef4444';   // 68-70 dBZ - Red
 }
 
 function storm_frequency ({Data2}) {
+    /**
+     * Second plot: Scatter plot of storm features against average rainfall and wind speed
+     */
     const x = Data2.map(d => Number(d.rainfall));
     const y = Data2.map(d => Number(d.windspeed));
     const sizes = Data2.map(d => Math.max(6, Number(d.size)*0.1 || 6));

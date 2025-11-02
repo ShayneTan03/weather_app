@@ -3,11 +3,15 @@ import Plot from "react-plotly.js";
 
 
 function duration_intensity ({Data3}) {
+    /**
+     * Third plot: Scatter plot of storm duration against average intensity
+     * Marker size represents average storm area, scaled for better visibility
+     */
     const x = Data3 ? Data3.map(d => d.duration) : [];
     const y = Data3 ? Data3.map(d => d.avg_dbz) : [];
     const rawSizes = Data3 ? Data3.map(d => Number(d.avg_area) || 1) : [1];
 
-    // scale raw area values to pixel diameters so markers render consistently (enlarged 3x)
+    // scale raw area values to pixel diameters so markers render consistently
     const minRaw = Math.min(...rawSizes);
     const maxRaw = Math.max(...rawSizes);
     const minPx = 10;   
@@ -19,8 +23,6 @@ function duration_intensity ({Data3}) {
     });
 
     const sizes = scaledSizes.length ? scaledSizes : [4];
-
-    // pick a few sample indices for the legend (no plotted points)
     const sampleIndices = sizes.length >= 3
       ? [0, Math.floor(sizes.length / 2), sizes.length - 1]
       : sizes.map((_, i) => i);
@@ -35,7 +37,7 @@ function duration_intensity ({Data3}) {
      marker: {
        size: sizes[i],      
        sizemode: 'diameter',
-       color: '#000000',       // ensure consistent legend color
+       color: '#000000',    
        opacity: 0.95,
        symbol: 'circle'
      },
@@ -53,11 +55,10 @@ function duration_intensity ({Data3}) {
                     x,
                     y,
                     marker: {
-                        size: sizes,           // pixel diameters applied to dataset points
+                        size: sizes,          
                         sizemode: 'diameter',
                         opacity: 0.8
                     },
-                    // show original area in hover
                     customdata: rawSizes,
                     hovertemplate: 'Duration: %{x}<br>Intensity: %{y}<br>Area: %{customdata}<extra></extra>',
                     showlegend: false
@@ -69,14 +70,14 @@ function duration_intensity ({Data3}) {
                 xaxis: { 
                     title: {
                         text: "Duration",
-                        standoff: 20  // Add space between axis and title
+                        standoff: 20  
                     },
                     autorange: true 
                 },
                 yaxis: { 
                     title: {
                         text: "Average Intensity (dbZ)",
-                        standoff: 20  // Add space between axis and title
+                        standoff: 20  
                     },
                     autorange: true 
                 },
