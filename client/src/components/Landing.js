@@ -9,6 +9,7 @@ import { getMetrics } from "../api/fetchMetrics";
 import RadarMap, { DetectedStorms } from "./RadarMap";
 import Plot1 from "./Plot1";
 import Plot2 from "./Plot2";
+import Plot3 from "./Plot3";
 import StormFeatureAnalysis from "./FeatureAnalysis";
 import GlobalDateRangePicker from "./DateRange";
 import {
