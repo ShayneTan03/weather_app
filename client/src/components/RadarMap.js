@@ -322,16 +322,16 @@ function RadarMap({ readings, range }) {
     const timeline = generateTimeline(start, end);
     const currentIndex = timeline.findIndex((t) => t === selectedTime);
 
-    const rangeStart = new Date(dateRange.start).getTime();
-    const rangeEnd = new Date(dateRange.end).getTime();
+    // const rangeStart = new Date(dateRange.start).getTime();
+    // const rangeEnd = new Date(dateRange.end).getTime();
 
-    const filteredStorms = storms
-        ? storms.filter((s) => {
-              const stormStart = new Date(s.start_time).getTime();
-              const stormEnd = new Date(s.end_time).getTime();
-              return stormStart >= rangeStart && stormEnd <= rangeEnd;
-          })
-        : [];
+    // const filteredStorms = storms
+    //     ? storms.filter((s) => {
+    //           const stormStart = new Date(s.start_time).getTime();
+    //           const stormEnd = new Date(s.end_time).getTime();
+    //           return stormStart >= start && stormEnd <= end;
+    //       })
+    //     : [];
 
     if (selectedTime === null) setSelectedTime(timeline[0]);
 

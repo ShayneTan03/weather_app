@@ -23,8 +23,8 @@ import GlobalDateRangePicker from "./DateRange";
 // } from '../api/fetchApi';
 
 // temporary import until API is ready
-import { getPlot1Data, display_join as getPlot2Data } from "../api/fetchPlots";
-import { getWeatherObs, getWeatherStations } from '../api/fetchApi';
+import { getPlot1Data, getPlot2Data } from "../api/fetchPlots";
+import { getWeatherObs, getWeatherStations, getStorms } from '../api/fetchApi';
 import { useMemo } from "react";
 import { de } from "date-fns/locale";
 import { set } from "date-fns";
@@ -151,8 +151,6 @@ function Dashboard() {
             try {
                 // Fetch actual weather observations and stations from the API
 
-                const stations = await getWeatherStations();
-
                 // Use global date range picker values
                 const { startDate, endDate } = range[0];
                 const endOfDay = new Date(endDate);
@@ -160,6 +158,10 @@ function Dashboard() {
 
                 // Calculate metrics using the fetched data and current dateRange
                 // const metrics = getMetrics(observations, dateRange);
+
+                const stations = await getWeatherStations();
+                const observations = await getWeatherObs();
+                const storms = await getStorms();
                 const metrics = getMetrics(observations, {start: startDate, end: endOfDay});
 
                 // Map stations to readings with metrics
@@ -178,6 +180,7 @@ function Dashboard() {
                 });
 
                 setReadings(readingMap); // Renew state with new readings
+                setStorms(storms);
             } catch (err) {
                 console.error(err.message);
             }
@@ -284,30 +287,11 @@ function Dashboard() {
     }
 ];
 
-    const recent2023 = trendData.filter((d) => d.period.startsWith("2023"));
-    const historical2022 = trendData.filter((d) => d.period.startsWith("2022"));
-
     const avg = (key) => {
         if (!readings || readings.length === 0) return 0;
         return readings
             .map(r => Number(r[key]) || 0)
             .reduce((a, b) => a + b, 0) / readings.length;
-    };
-
-    const avgRecent = {
-        stormCount: avg(recent2023, "stormCount"),
-        avgDuration: avg(recent2023, "avgDuration"),
-        avgArea: avg(recent2023, "avgArea"),
-        avgIntensity: avg(recent2023, "avgIntensity"),
-        avgDistance: avg(recent2023, "avgDistance"),
-    };
-
-    const avgHistorical = {
-        stormCount: avg(historical2022, "stormCount"),
-        avgDuration: avg(historical2022, "avgDuration"),
-        avgArea: avg(historical2022, "avgArea"),
-        avgIntensity: avg(historical2022, "avgIntensity"),
-        avgDistance: avg(historical2022, "avgDistance"),
     };
 
     const stormClassification = [
@@ -338,8 +322,7 @@ function Dashboard() {
         { title: "Wind Direction", reading: avg("wind_direction_degrees"), icon: <ArrowDown className="text-danger" />, unit: "°" },
     ];
     }, [readings, dateRange]);
-     
-
+    
     return (
         <Container fluid className="py-4">
             <Header
@@ -395,7 +378,7 @@ function Dashboard() {
                     {apiError && <div style={{ color: 'red' }}>Error: {apiError}</div>}
                     {/* Display Feature Analysis */}
                     {/* Replace Data3 with actual StormData when API is ready */}
-                    <StormFeatureAnalysis stormSummaryData={Data3} />
+                    <StormFeatureAnalysis storms={storms} />
                     
                     {/* Wrap the Plot1 with Col and Card for cleaner layout */}
                     <Col xs={12}>

@@ -119,13 +119,14 @@ function FeatureRow({features}) {
  * Actual Component for Storm Feature Analysis
  */
 function StormFeatureAnalysis({storms, Data1}) {
+    console.log(storms);
     const averageDuration = storms.reduce((sum, storm) => sum + storm.duration, 0) / storms.length;
     const averageIntensity = storms.reduce((sum, storm) => sum + storm.avg_dbz, 0) / storms.length;
     const averageSize = storms.reduce((sum, storm) => sum + storm.avg_area, 0) / storms.length;
 
     // Initialize selectedStormID with the stormId of the first element in Data1
     const [selectedStormID, setSelectedStormID] = useState(
-        stormSummaryData && stormSummaryData.length > 0 ? stormSummaryData[0].storm_id : null
+        storms && storms.length > 0 ? storms[0].storm_id : null
     );
 
     // Handler for changing the selected storm ID
@@ -134,12 +135,12 @@ function StormFeatureAnalysis({storms, Data1}) {
     };
 
     // If stormSummaryDate is not provided or empty, show a message
-    if (!stormSummaryData || stormSummaryData.length === 0) {
+    if (!storms || storms.length === 0) {
         return <p>No storm data for selected date range.</p>;
     }
 
     // Find the data for the selected storm ID
-    const selectedStorm = stormSummaryData.find(
+    const selectedStorm = storms.find(
         (storm) => storm.storm_id === selectedStormID
     );
 
@@ -189,7 +190,7 @@ function StormFeatureAnalysis({storms, Data1}) {
             <Card>
                 <Card.Body>
                     <Card.Title>Storm Feature Analysis</Card.Title>
-                    {storms && <FeatureRow features = {avgFeaturesArray} />}
+                    {storms && <FeatureRow features = {featuresArray} />}
                     {/* Dropdown to select storm ID */}
                     <Form.Group controlID = 'stormSelet' className = 'mb-3'>
                         <Form.Label>Select Storm ID:</Form.Label>
@@ -197,7 +198,7 @@ function StormFeatureAnalysis({storms, Data1}) {
                             value = {selectedStormID}
                             onChange = {handleStormChange}
                         >
-                            {stormSummaryData.map((storm) => (
+                            {storms.map((storm) => (
                                 <option key = {storm.storm_id} value={storm.storm_id}>
                                     {storm.storm_id}
                                 </option>
@@ -211,7 +212,7 @@ function StormFeatureAnalysis({storms, Data1}) {
                     {/* CSV Export Button */}
                     <div className = 'mt-4 d-flex gap-2'>
                         <CSVLink
-                            data = { stormSummaryData }
+                            data = { storms }
                             headers = {[
                                 { label: "Storm ID", key: "storm_id" },
                                 { label: "Start Time", key: "start_time" },
