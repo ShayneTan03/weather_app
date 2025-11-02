@@ -86,6 +86,11 @@ function RadarOverlay({ selectedTime }) {
 
     if (!stormFrames.length) return null;
 
+    const fmt = (n, dp = 1) => {
+        const num = Number(n);
+        return Number.isFinite(num) ? num.toFixed(dp) : n;
+    };
+
     const selectedDate = new Date(selectedTime);
 
     // start of previous hour
@@ -130,12 +135,12 @@ function RadarOverlay({ selectedTime }) {
                         stroke={false}
                     >
                         <Tooltip>
-                            <div>
-                                <div>Storm ID: {f.storm_id}</div>
-                                <div>Area: {f.area}</div>
-                                <div>dBZ: {f.avg_dbz}</div>
-                                <div>Time: {f.timestamp.toLocaleString()}</div>
-                            </div>
+                                    <div>
+                                        <div>Storm ID: {f.storm_id}</div>
+                                        <div>Area: {fmt(f.area, 1)}</div>
+                                        <div>dBZ: {fmt(f.avg_dbz, 1)}</div>
+                                        <div>Time: {f.timestamp.toLocaleString()}</div>
+                                    </div>
                         </Tooltip>
                     </Circle>
                 );
@@ -239,15 +244,17 @@ function SingaporeMap({ readings, selectedOptions, selectedTime }) {
                     >
                         <Popup>
                             <strong>{r.name}</strong>
-                            {MAP_POINTERS.map(
-                                (v) =>
-                                    v.display && (
-                                        <div key={`${r.station_id}-${v.key}`}>
-                                            {v.label}:{" "}
-                                            {r[v.key] === "NA" ? 0 : r[v.key]}{" "}
-                                            {v.unit}
-                                        </div>
-                                    )
+                            {MAP_POINTERS.map((v) =>
+                                v.display && (
+                                    <div key={`${r.station_id}-${v.key}`}>
+                                        {v.label}: {(() => {
+                                            const raw = r[v.key];
+                                            const n = Number(raw);
+                                            if (Number.isFinite(n)) return n.toFixed(1);
+                                            return raw === "NA" ? "0" : raw;
+                                        })()} {v.unit}
+                                    </div>
+                                )
                             )}
                         </Popup>
                     </Marker>
@@ -279,7 +286,7 @@ function SingaporeMap({ readings, selectedOptions, selectedTime }) {
                                       >
                                           <Popup>
                                               {r.name} <br />
-                                              Wind Direction: {angle}°
+                                              Wind Direction: {Math.round(angle)}°
                                           </Popup>
                                       </Marker>
                                   );
