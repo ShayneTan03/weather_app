@@ -75,9 +75,8 @@ docker compose up --build
 
 ```
 ├── backend/                # Core backend modules
-├── frontend/               # 
+├── client/                 # Frontend user interface components
 ├── dockerisation/          # Multi-container orchestration
-├── client/                 # 
 └── README.md               # This file
 ```
 
