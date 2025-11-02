@@ -274,7 +274,6 @@ function RadarMap({ readings, range }) {
         temperature: false,
     });
 
-    const [weatherStations, setWeatherStations] = useState([]); // arr of coords
     const [sliderValue, setSliderValue] = useState(0); // slider will be used to select the date
 
     const [isPlaying, setIsPlaying] = useState(false);
@@ -306,10 +305,6 @@ function RadarMap({ readings, range }) {
         return times;
     };
 
-    // replace by selected date timeline
-    // const start = "2024-09-03T11:20:32";
-    // const end = "2024-09-04T15:55:32";
-
     // get start and end date from range picker
     const { startDate, endDate } = range[0];
     const endOfDay = new Date(endDate);
@@ -321,17 +316,6 @@ function RadarMap({ readings, range }) {
 
     const timeline = generateTimeline(start, end);
     const currentIndex = timeline.findIndex((t) => t === selectedTime);
-
-    // const rangeStart = new Date(dateRange.start).getTime();
-    // const rangeEnd = new Date(dateRange.end).getTime();
-
-    // const filteredStorms = storms
-    //     ? storms.filter((s) => {
-    //           const stormStart = new Date(s.start_time).getTime();
-    //           const stormEnd = new Date(s.end_time).getTime();
-    //           return stormStart >= start && stormEnd <= end;
-    //       })
-    //     : [];
 
     if (selectedTime === null) setSelectedTime(timeline[0]);
 

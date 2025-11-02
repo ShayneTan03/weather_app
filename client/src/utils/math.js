@@ -59,3 +59,13 @@ export function formatTimestamp(date) {
 
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
+
+
+export function toISODate(d) {
+    if (!d) return ''; // handle error case
+    const z = new Date(d);
+    const y = z.getFullYear();
+    const m = String(z.getMonth() + 1).padStart(2, "0");
+    const day = String(z.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+}

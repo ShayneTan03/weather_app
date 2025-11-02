@@ -1,4 +1,4 @@
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Plot from "react-plotly.js";
 import { Container, Row, Col, Card } from "react-bootstrap";
 import { ArrowDown } from "react-bootstrap-icons";
@@ -12,6 +12,9 @@ import Plot2 from "./Plot2";
 import Plot3 from "./Plot3";
 import StormFeatureAnalysis from "./FeatureAnalysis";
 import GlobalDateRangePicker from "./DateRange";
+import { getPlot1Data, getPlot2Data, getPlot3Data } from "../api/fetchPlots";
+import { getWeatherObs, getWeatherStations, getStorms } from '../api/fetchApi';
+import {toISODate} from "../utils/math";
 
 // Final API imports
 // import { 
@@ -21,30 +24,6 @@ import GlobalDateRangePicker from "./DateRange";
 //     getRadarMapData,
 //     getClientReadings
 // } from '../api/fetchApi';
-
-// temporary import until API is ready
-<<<<<<< HEAD
-import { getPlot1Data, getPlot2Data } from "../api/fetchPlots";
-import { getWeatherObs, getWeatherStations, getStorms } from '../api/fetchApi';
-=======
-import { getPlot1Data, getPlot2Data, getPlot3Data } from "../api/fetchPlots";
-import { getWeatherObs, getWeatherStations } from '../api/fetchApi';
->>>>>>> 7e866be180fad4df024634275d872c7afe6309c1
-import { useMemo } from "react";
-
-
-/**
- * Helper function for date formatting for API call
- */
-function toISODate(d) {
-    if (!d) return ''; // handle error case
-    const z = new Date(d);
-    const y = z.getFullYear();
-    const m = String(z.getMonth() + 1).padStart(2, "0");
-    const day = String(z.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
-}
-
 
 /**
  * The main Dashboard Displaying different components
@@ -253,16 +232,6 @@ function Dashboard() {
     }
 ];
 
-<<<<<<< HEAD
-    const avg = (key) => {
-        if (!readings || readings.length === 0) return 0;
-        return readings
-            .map(r => Number(r[key]) || 0)
-            .reduce((a, b) => a + b, 0) / readings.length;
-    };
-
-=======
->>>>>>> 7e866be180fad4df024634275d872c7afe6309c1
     const stormClassification = [
         { name: "Light (<5 dBZ)", value: 35, color: "#22c55e" },
         { name: "Moderate (5–7 dBZ)", value: 40, color: "#eab308" },
@@ -279,7 +248,6 @@ function Dashboard() {
         hole: 0.5,
     };
 
-    // Helper function to calculate average of a field from readings
     const avg = (key) => {
         if (!readings || readings.length === 0) return 0;
         return readings
@@ -353,13 +321,8 @@ function Dashboard() {
                     {apiLoading && <div>Loading charts...</div>}
                     {apiError && <div style={{ color: 'red' }}>Error: {apiError}</div>}
                     {/* Display Feature Analysis */}
-<<<<<<< HEAD
                     {/* Replace Data3 with actual StormData when API is ready */}
                     <StormFeatureAnalysis storms={storms} />
-=======
-                    {/* Use plot3Data when available, fallback to Data3 for demo */}
-                    <StormFeatureAnalysis stormSummaryData={plot3Data || Data3} />
->>>>>>> 7e866be180fad4df024634275d872c7afe6309c1
                     
                     {/* Wrap the Plot1 with Col and Card for cleaner layout */}
                     <Col xs={12}>

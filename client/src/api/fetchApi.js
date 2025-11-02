@@ -45,7 +45,7 @@ function unwrap(payload) {
 
 // Weather Stations
 export async function ping() {
-  const p = await request("/api");
+  await request("/api");
   return "pong";
 }
 

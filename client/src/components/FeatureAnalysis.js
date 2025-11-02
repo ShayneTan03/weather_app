@@ -118,13 +118,12 @@ function FeatureRow({features}) {
 /**
  * Actual Component for Storm Feature Analysis
  */
-function StormFeatureAnalysis({storms, Data1}) {
+function StormFeatureAnalysis({storms}) {
     console.log(storms);
     const averageDuration = storms.reduce((sum, storm) => sum + storm.duration, 0) / storms.length;
     const averageIntensity = storms.reduce((sum, storm) => sum + storm.avg_dbz, 0) / storms.length;
     const averageSize = storms.reduce((sum, storm) => sum + storm.avg_area, 0) / storms.length;
 
-    // Initialize selectedStormID with the stormId of the first element in Data1
     const [selectedStormID, setSelectedStormID] = useState(
         storms && storms.length > 0 ? storms[0].storm_id : null
     );
@@ -148,7 +147,25 @@ function StormFeatureAnalysis({storms, Data1}) {
     // const pointsToAnalyze = selectedStormData ? selectedStormData.points : null;
     // const features = analyzeStormData(pointsToAnalyze);
 
-    // Prepare array of features for display
+
+    const avgFeaturesArray = [
+        {
+            title: "Average Duration",
+            value: averageDuration,
+            unit: "minutes",
+        },
+        {
+            title: "Average Intensity",
+            value: averageIntensity,
+            unit: "dbz",
+        },
+        {
+            title: "Average Size",
+            value: averageSize,
+            unit: "km2",
+        },
+    ]
+
     const featuresArray = selectedStorm ? [
         {
             title: "Max Area",
@@ -190,7 +207,7 @@ function StormFeatureAnalysis({storms, Data1}) {
             <Card>
                 <Card.Body>
                     <Card.Title>Storm Feature Analysis</Card.Title>
-                    {storms && <FeatureRow features = {featuresArray} />}
+                    {storms && <FeatureRow features = {avgFeaturesArray} />}
                     {/* Dropdown to select storm ID */}
                     <Form.Group controlID = 'stormSelet' className = 'mb-3'>
                         <Form.Label>Select Storm ID:</Form.Label>
