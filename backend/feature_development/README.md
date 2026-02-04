@@ -7,7 +7,7 @@ A PostgreSQL server hosted on AWS was used as our database, where our downstream
 
 ## DFD diagram
 
-![DFD diagram]("dfd image.jpg")
+![DFD diagram](DFD.jpg)
 ## ER diagram
 
-![ER diagram]("er image.jpg")
+![ER diagram](ER_diagram.jpg)
